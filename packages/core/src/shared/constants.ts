@@ -1,0 +1,17 @@
+export const SDK_NAME = '@appss-sdk' as const;
+export const SDK_VERSION = '0.1.0' as const;
+export const DEFAULT_ENDPOINT = 'https://ingest.appss.store' as const;
+export const DEFAULT_BATCH_SIZE = 50;
+export const DEFAULT_FLUSH_INTERVAL_MS = 10_000;
+export const MAX_QUEUE_SIZE = 10_000;
+export const MAX_QUEUE_SIZE_BYTES = 4_194_304; // ~4MB
+export const MAX_RETRIES = 5;
+export const BASE_BACKOFF_MS = 1_000;
+export const MAX_BACKOFF_MS = 16_000;
+export const JITTER_FACTOR = 0.2;
+export const PROTOCOL_VERSION = '1' as const;
+export const EVENTS_PATH = '/v1/events' as const;
+export const USER_PROPERTIES_PATH = '/v1/user-properties' as const;
+export const REQUEST_TIMEOUT_MS = 30_000;
+export const SHUTDOWN_TIMEOUT_MS = 5_000;
+export const STORAGE_KEY_PREFIX = '__appss_queue_' as const;
