@@ -22,6 +22,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ['**/logger/console-logger.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
     ignores: ['dist/', 'node_modules/', 'coverage/', '*.config.*', 'turbo.json'],
   },
 );
