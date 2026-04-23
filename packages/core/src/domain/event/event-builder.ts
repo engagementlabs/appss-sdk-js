@@ -1,10 +1,5 @@
-import type { AppssEvent, EventProperties, EventPayload } from '../../shared/types/wire-protocol.js';
-
-export interface BuildEventParams {
-  event: string;
-  distinctId: string;
-  properties?: EventProperties;
-}
+import type { AppssEvent, EventPayload } from '../../shared/types/wire-protocol.js';
+import type { BuildEventParams } from '../../shared/types/internal.js';
 
 export function buildEvent(params: BuildEventParams): AppssEvent {
   if (!params.event || params.event.trim().length === 0) {

@@ -58,7 +58,7 @@ describe('resolveConfig', () => {
   it('merges defaults', () => {
     const r = resolveConfig({ apiKey: 'key' });
     expect(r.apiKey).toBe('key');
-    expect(r.endpoint).toBe('https://ingest.appss.store');
+    expect(r.endpoint).toBe('http://157.90.231.51:5123');
     expect(r.batchSize).toBe(50);
     expect(r.debug).toBe(false);
     expect(r.retry).toEqual({ maxRetries: 5, baseBackoffMs: 1000, maxBackoffMs: 16000 });

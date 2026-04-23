@@ -35,15 +35,15 @@ describe('BatchDispatcher', () => {
   it('returns success on 200', async () => {
     const t = new MockTransport();
     t.responses = [{ statusCode: 200, headers: {} }];
-    const result = await makeDispatcher(t).dispatch('/v1/events', { batch: [] }, {});
+    const result = await makeDispatcher(t).dispatch('/api/v1/events', { batch: [] }, {});
     expect(result.success).toBe(true);
-    expect(t.calls[0]?.path).toBe('/v1/events');
+    expect(t.calls[0]?.path).toBe('/api/v1/events');
   });
 
   it('returns error on 400 (DROP)', async () => {
     const t = new MockTransport();
     t.responses = [{ statusCode: 400, headers: {} }];
-    const result = await makeDispatcher(t).dispatch('/v1/events', {}, {});
+    const result = await makeDispatcher(t).dispatch('/api/v1/events', {}, {});
     expect(result.success).toBe(false);
     expect(result.error).toBeInstanceOf(ProtocolError);
   });
@@ -53,12 +53,12 @@ describe('BatchDispatcher', () => {
     t.responses = [{ statusCode: 401, headers: {} }, { statusCode: 200, headers: {} }];
     const d = makeDispatcher(t);
 
-    const r1 = await d.dispatch('/v1/events', {}, {});
+    const r1 = await d.dispatch('/api/v1/events', {}, {});
     expect(r1.success).toBe(false);
     expect(r1.error).toBeInstanceOf(ApiKeyRevokedError);
     expect(d.isStopped()).toBe(true);
 
-    const r2 = await d.dispatch('/v1/events', {}, {});
+    const r2 = await d.dispatch('/api/v1/events', {}, {});
     expect(r2.success).toBe(false);
     expect(t.calls).toHaveLength(1);
   });
@@ -66,7 +66,7 @@ describe('BatchDispatcher', () => {
   it('returns splitRequested on 413', async () => {
     const t = new MockTransport();
     t.responses = [{ statusCode: 413, headers: {} }];
-    const result = await makeDispatcher(t).dispatch('/v1/events', {}, {});
+    const result = await makeDispatcher(t).dispatch('/api/v1/events', {}, {});
     expect(result.success).toBe(false);
     expect(result.splitRequested).toBe(true);
   });
@@ -78,7 +78,7 @@ describe('BatchDispatcher', () => {
       { statusCode: 500, headers: {} },
       { statusCode: 200, headers: {} },
     ];
-    const result = await makeDispatcher(t).dispatch('/v1/events', {}, {});
+    const result = await makeDispatcher(t).dispatch('/api/v1/events', {}, {});
     expect(result.success).toBe(true);
     expect(t.calls).toHaveLength(3);
   });
@@ -86,7 +86,7 @@ describe('BatchDispatcher', () => {
   it('returns MaxRetriesExceededError after exhaustion', async () => {
     const t = new MockTransport();
     t.responses = Array(10).fill({ statusCode: 500, headers: {} });
-    const result = await makeDispatcher(t).dispatch('/v1/events', {}, {});
+    const result = await makeDispatcher(t).dispatch('/api/v1/events', {}, {});
     expect(result.success).toBe(false);
     expect(result.error).toBeInstanceOf(MaxRetriesExceededError);
   });
@@ -94,8 +94,8 @@ describe('BatchDispatcher', () => {
   it('works with user-properties endpoint', async () => {
     const t = new MockTransport();
     t.responses = [{ statusCode: 200, headers: {} }];
-    const result = await makeDispatcher(t).dispatch('/v1/user-properties', { distinct_id: '1', properties: {} }, {});
+    const result = await makeDispatcher(t).dispatch('/api/v1/user-properties', { distinct_id: '1', properties: {} }, {});
     expect(result.success).toBe(true);
-    expect(t.calls[0]?.path).toBe('/v1/user-properties');
+    expect(t.calls[0]?.path).toBe('/api/v1/user-properties');
   });
 });

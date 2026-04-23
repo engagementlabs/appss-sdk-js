@@ -1,16 +1,11 @@
 import type { ITransport } from '../../ports/transport.js';
 import type { ILogger } from '../../ports/logger.js';
-import type { AppssError } from '../../shared/errors/appss-error.js';
-import { handleResponse, TransportAction } from '../../domain/transport/response-handler.js';
+import type { DispatchResult } from '../../shared/types/internal.js';
+import { handleResponse } from '../../domain/transport/response-handler.js';
+import { TransportAction } from '../../shared/types/internal.js';
 import { RetryPolicy } from '../../domain/transport/retry-policy.js';
 import { MaxRetriesExceededError } from '../../shared/errors/index.js';
 import { createTransportError } from '../errors/error-factory.js';
-
-export interface DispatchResult {
-  success: boolean;
-  splitRequested?: boolean;
-  error?: AppssError;
-}
 
 export class BatchDispatcher {
   private readonly transport: ITransport;
@@ -49,7 +44,13 @@ export class BatchDispatcher {
 
           case TransportAction.STOP:
             this.stopped = true;
-            // fallthrough
+            return {
+              success: false,
+              error: result.errorCode
+                ? createTransportError(result.errorCode, result.errorMessage)
+                : undefined,
+            };
+
           case TransportAction.DROP:
             return {
               success: false,

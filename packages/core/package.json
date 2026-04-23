@@ -1,8 +1,13 @@
 {
-  "name": "@appss-sdk/core",
+  "name": "@appss/sdk-core",
   "version": "0.1.0",
-  "private": true,
+  "description": "Core module for APPSS analytics SDK",
+  "keywords": ["analytics", "sdk", "tracking", "telegram", "tma"],
   "type": "module",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

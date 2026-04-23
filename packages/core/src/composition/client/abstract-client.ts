@@ -32,14 +32,13 @@ export abstract class AbstractAppssClient {
   private identity = new IdentityManager();
   private consent = new ConsentManager();
   private flushPolicy: FlushPolicy | null = null;
+  private flushPromise: Promise<void> | null = null;
 
   protected abstract createTransport(config: ResolvedConfig): ITransport;
   protected abstract createQueue(config: ResolvedConfig): IEventQueue;
   protected abstract createLogger(config: ResolvedConfig): ILogger;
   protected abstract registerLifecycleHandlers(): void;
   protected abstract unregisterLifecycleHandlers(): void;
-
-  // ── Lifecycle ──
 
   init(config: AppssConfig): void {
     if (this.readiness.isConfigured()) {
@@ -77,8 +76,6 @@ export abstract class AbstractAppssClient {
     this.logger?.info('SDK destroyed');
   }
 
-  // ── Identity ──
-
   identify(distinctId: string): void {
     if (!this.guardConfigured()) return;
 
@@ -95,12 +92,17 @@ export abstract class AbstractAppssClient {
 
   setUserProperty(key: string, value: unknown): void {
     if (!this.guardReady()) return;
-
     this.identity.setUserProperty(key, value);
     void this.flushUserProperties();
   }
 
-  // ── Tracking ──
+  setUserProperties(properties: Record<string, unknown>): void {
+    if (!this.guardReady()) return;
+    for (const [key, value] of Object.entries(properties)) {
+      this.identity.setUserProperty(key, value);
+    }
+    void this.flushUserProperties();
+  }
 
   track(event: string, properties?: EventProperties): void {
     if (!this.guardReady()) return;
@@ -125,6 +127,19 @@ export abstract class AbstractAppssClient {
   }
 
   async flush(): Promise<void> {
+    if (this.flushPromise) {
+      return this.flushPromise;
+    }
+
+    this.flushPromise = this.doFlush();
+    try {
+      await this.flushPromise;
+    } finally {
+      this.flushPromise = null;
+    }
+  }
+
+  private async doFlush(): Promise<void> {
     if (!this.config || !this.queue || !this.dispatcher) return;
     if (this.queue.isEmpty()) return;
 
@@ -134,8 +149,6 @@ export abstract class AbstractAppssClient {
 
     await this.sendBatchWithSplit(payloads, headers);
   }
-
-  // ── Consent ──
 
   optOut(): void {
     this.consent.optOut();
@@ -150,8 +163,6 @@ export abstract class AbstractAppssClient {
   isOptedOut(): boolean {
     return this.consent.isOptedOut();
   }
-
-  // ── Private: events ──
 
   private async sendBatchWithSplit(batch: EventPayload[], headers: Record<string, string>): Promise<void> {
     if (!this.queue || !this.dispatcher) return;
@@ -174,9 +185,7 @@ export abstract class AbstractAppssClient {
     }
   }
 
-  // ── Private: user properties ──
-
-  private async flushUserProperties(): Promise<void> {
+  async flushUserProperties(): Promise<void> {
     if (!this.config || !this.dispatcher) return;
 
     const props = this.identity.peekPendingProperties();
@@ -200,8 +209,6 @@ export abstract class AbstractAppssClient {
     }
   }
 
-  // ── Private: guards ──
-
   private guardConfigured(): boolean {
     if (this.readiness.isConfigured()) return true;
     this.handleError(new NotInitializedError());
@@ -216,16 +223,12 @@ export abstract class AbstractAppssClient {
     return false;
   }
 
-  // ── Private: cleanup ──
-
   private destroySync(): void {
     this.flushPolicy?.stop();
     this.unregisterLifecycleHandlers();
     this.identity.reset();
     this.readiness.reset();
   }
-
-  // ── Private: error routing ──
 
   private handleError(error: AppssError): void {
     if (
@@ -243,8 +246,6 @@ export abstract class AbstractAppssClient {
 
     try {
       this.config?.onError?.(error);
-    } catch {
-      // user callback must not crash the SDK
-    }
+    } catch { /* noop */ }
   }
 }

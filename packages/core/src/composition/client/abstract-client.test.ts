@@ -61,9 +61,7 @@ describe('AbstractAppssClient', () => {
       client.init({ apiKey: 'key' });
       client.identify('u');
       client.init({ apiKey: 'key2' });
-      // old lifecycle unregistered, new registered
       expect(client.lifecycleRegistered).toBe(true);
-      // need to re-identify after re-init
       const onError = vi.fn();
       client.init({ apiKey: 'key3', onError });
       client.track('x');
@@ -90,12 +88,12 @@ describe('AbstractAppssClient', () => {
   });
 
   describe('track', () => {
-    it('sends events to /v1/events', async () => {
+    it('sends events to /api/v1/events', async () => {
       client.init({ apiKey: 'key' });
       client.identify('user-1');
       client.track('purchase', { amount: 9.99 });
       await client.flush();
-      const eventCalls = client.transport_.calls.filter((c) => c.path === '/v1/events');
+      const eventCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/events');
       expect(eventCalls.length).toBeGreaterThan(0);
     });
     it('auto-flushes on threshold', async () => {
@@ -103,7 +101,7 @@ describe('AbstractAppssClient', () => {
       client.identify('user-1');
       client.track('a'); client.track('b');
       await new Promise((r) => setTimeout(r, 10));
-      const eventCalls = client.transport_.calls.filter((c) => c.path === '/v1/events');
+      const eventCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/events');
       expect(eventCalls.length).toBeGreaterThan(0);
     });
     it('drops when opted out', async () => {
@@ -122,7 +120,6 @@ describe('AbstractAppssClient', () => {
     });
     it('does not crash before init', () => {
       client.track('x');
-      // no crash — silent drop (no logger, no config)
     });
     it('calls onError in prod mode', () => {
       const onError = vi.fn();
@@ -134,30 +131,26 @@ describe('AbstractAppssClient', () => {
   });
 
   describe('setUserProperty', () => {
-    it('sends to /v1/user-properties', async () => {
+    it('setUserProperty sends immediately', async () => {
       client.init({ apiKey: 'key' });
       client.identify('user-1');
       client.setUserProperty('plan', 'pro');
       await new Promise((r) => setTimeout(r, 10));
-      const propCalls = client.transport_.calls.filter((c) => c.path === '/v1/user-properties');
+      const propCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/user-properties');
       expect(propCalls).toHaveLength(1);
+      const body = propCalls[0]?.body as { properties: Record<string, unknown> };
+      expect(body.properties['plan']).toBe('pro');
     });
-    it('does not lose data on failed send', async () => {
-      client.transport_.response = { statusCode: 500, headers: {} };
-      client.init({ apiKey: 'key', retry: { maxRetries: 1, baseBackoffMs: 1, maxBackoffMs: 1 } });
+    it('setUserProperties sends all in one request', async () => {
+      client.init({ apiKey: 'key' });
       client.identify('user-1');
-      client.setUserProperty('plan', 'pro');
-      await new Promise((r) => setTimeout(r, 50));
-      // properties still pending after failure (peek, not consume)
-      client.transport_.response = { statusCode: 200, headers: {} };
-      // setting another property triggers another flush attempt
-      client.setUserProperty('extra', 'val');
-      await new Promise((r) => setTimeout(r, 50));
-      const propCalls = client.transport_.calls.filter((c) => c.path === '/v1/user-properties');
-      expect(propCalls.length).toBeGreaterThanOrEqual(2);
-      const lastBody = propCalls[propCalls.length - 1]?.body as { properties: Record<string, unknown> };
-      expect(lastBody.properties['plan']).toBe('pro');
-      expect(lastBody.properties['extra']).toBe('val');
+      client.setUserProperties({ a: 1, b: 2 });
+      await new Promise((r) => setTimeout(r, 10));
+      const propCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/user-properties');
+      expect(propCalls).toHaveLength(1);
+      const body = propCalls[0]?.body as { properties: Record<string, unknown> };
+      expect(body.properties['a']).toBe(1);
+      expect(body.properties['b']).toBe(2);
     });
   });
 

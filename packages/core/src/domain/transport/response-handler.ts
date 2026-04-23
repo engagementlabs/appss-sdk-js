@@ -1,21 +1,7 @@
 import type { TransportResponse } from '../../shared/types/wire-protocol.js';
+import type { HandleResult } from '../../shared/types/internal.js';
+import { TransportAction } from '../../shared/types/internal.js';
 import { ErrorCode } from '../../shared/errors/error-codes.js';
-
-export enum TransportAction {
-  SUCCESS = 'SUCCESS',
-  DROP = 'DROP',
-  RETRY = 'RETRY',
-  SPLIT_AND_RETRY = 'SPLIT_AND_RETRY',
-  RATE_LIMIT = 'RATE_LIMIT',
-  STOP = 'STOP',
-}
-
-export interface HandleResult {
-  action: TransportAction;
-  retryAfterMs?: number;
-  errorCode?: ErrorCode;
-  errorMessage?: string;
-}
 
 export function handleResponse(response: TransportResponse): HandleResult {
   const { statusCode } = response;

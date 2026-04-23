@@ -27,4 +27,6 @@ export {
 } from './shared/errors/index.js';
 export type { ErrorSeverity } from './shared/errors/index.js';
 
+export { storageKey } from './shared/storage-key.js';
+
 export { AbstractAppssClient } from './composition/index.js';

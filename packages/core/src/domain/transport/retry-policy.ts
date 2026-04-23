@@ -1,16 +1,10 @@
+import type { RetryPolicyOptions } from '../../shared/types/internal.js';
 import {
   MAX_RETRIES,
   BASE_BACKOFF_MS,
   MAX_BACKOFF_MS,
   JITTER_FACTOR,
 } from '../../shared/constants.js';
-
-export interface RetryPolicyOptions {
-  maxRetries?: number;
-  baseBackoffMs?: number;
-  maxBackoffMs?: number;
-  jitterFactor?: number;
-}
 
 export class RetryPolicy {
   private readonly maxRetries: number;

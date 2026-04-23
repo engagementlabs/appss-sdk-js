@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { handleResponse, TransportAction } from './response-handler.js';
+import { handleResponse } from './response-handler.js';
+import { TransportAction } from '../../shared/types/internal.js';
 import { RetryPolicy } from './retry-policy.js';
 import { ErrorCode } from '../../shared/errors/error-codes.js';
 
