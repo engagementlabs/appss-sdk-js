@@ -2,7 +2,14 @@
   "name": "@appss/sdk-node",
   "version": "0.1.0",
   "description": "APPSS analytics SDK for Node.js (Telegram bots, servers)",
-  "keywords": ["analytics", "sdk", "tracking", "telegram", "node", "bot"],
+  "keywords": [
+    "analytics",
+    "sdk",
+    "tracking",
+    "telegram",
+    "node",
+    "bot"
+  ],
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -23,7 +30,9 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -33,6 +42,6 @@
     "clean": "rm -rf dist .turbo coverage"
   },
   "dependencies": {
-    "@appss/sdk-core": "0.1.0"
+    "@appss/sdk-core": "0.3.0"
   }
 }
