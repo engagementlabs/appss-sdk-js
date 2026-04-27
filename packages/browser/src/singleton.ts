@@ -21,19 +21,15 @@ export function identify(distinctId: string): void {
 }
 
 export function track(event: string, properties?: EventProperties): void {
-  getClient().track(event, properties);
+  getClient().trackEvent(event, properties);
 }
 
 export function setUserProperty(key: string, value: unknown): void {
-  getClient().setUserProperty(key, value);
+  getClient().setProperty(key, value);
 }
 
 export function setUserProperties(properties: Record<string, unknown>): void {
-  getClient().setUserProperties(properties);
-}
-
-export async function flushUserProperties(): Promise<void> {
-  return getClient().flushUserProperties();
+  getClient().setProperties(properties);
 }
 
 export async function flush(): Promise<void> {

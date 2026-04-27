@@ -25,7 +25,9 @@ describe('validateConfig', () => {
     expect(() => validateConfig({ apiKey: 'k', retry: { maxRetries: -1 } })).toThrow(TypeError);
   });
   it('passes with valid retry config', () => {
-    expect(() => validateConfig({ apiKey: 'k', retry: { maxRetries: 3, baseBackoffMs: 500 } })).not.toThrow();
+    expect(() =>
+      validateConfig({ apiKey: 'k', retry: { maxRetries: 3, baseBackoffMs: 500 } }),
+    ).not.toThrow();
   });
 });
 
@@ -50,7 +52,9 @@ describe('validateRetryConfig', () => {
     expect(() => validateRetryConfig({ maxBackoffMs: 0 })).toThrow(TypeError);
   });
   it('passes valid config', () => {
-    expect(() => validateRetryConfig({ maxRetries: 10, baseBackoffMs: 500, maxBackoffMs: 30000 })).not.toThrow();
+    expect(() =>
+      validateRetryConfig({ maxRetries: 10, baseBackoffMs: 500, maxBackoffMs: 30000 }),
+    ).not.toThrow();
   });
 });
 
@@ -58,7 +62,7 @@ describe('resolveConfig', () => {
   it('merges defaults', () => {
     const r = resolveConfig({ apiKey: 'key' });
     expect(r.apiKey).toBe('key');
-    expect(r.endpoint).toBe('http://157.90.231.51:5123');
+    expect(r.endpoint).toBe('https://appss-event-tracker-back-p.engagelabs.org');
     expect(r.batchSize).toBe(50);
     expect(r.debug).toBe(false);
     expect(r.retry).toEqual({ maxRetries: 5, baseBackoffMs: 1000, maxBackoffMs: 16000 });
@@ -76,7 +80,10 @@ describe('resolveConfig', () => {
     expect(r.retry.maxBackoffMs).toBe(16000); // default
   });
   it('respects full retry overrides', () => {
-    const r = resolveConfig({ apiKey: 'k', retry: { maxRetries: 0, baseBackoffMs: 500, maxBackoffMs: 5000 } });
+    const r = resolveConfig({
+      apiKey: 'k',
+      retry: { maxRetries: 0, baseBackoffMs: 500, maxBackoffMs: 5000 },
+    });
     expect(r.retry).toEqual({ maxRetries: 0, baseBackoffMs: 500, maxBackoffMs: 5000 });
   });
 });

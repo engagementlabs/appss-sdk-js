@@ -1,33 +1,50 @@
 export class FlushPolicy {
   private readonly intervalMs: number;
   private timerId: ReturnType<typeof setInterval> | null = null;
-  private onFlush: (() => void) | null = null;
+  private flushFn: (() => Promise<void>) | null = null;
+  private flushPromise: Promise<void> | null = null;
 
   constructor(intervalMs: number) {
     this.intervalMs = intervalMs;
   }
 
-  start(onFlush: () => void): void {
-    this.onFlush = onFlush;
+  start(flushFn: () => Promise<void>): void {
+    this.flushFn = flushFn;
     this.startTimer();
   }
 
   stop(): void {
     this.clearTimer();
-    this.onFlush = null;
+    this.flushFn = null;
+    this.flushPromise = null;
   }
 
   reset(): void {
     this.clearTimer();
-    if (this.onFlush) {
+    if (this.flushFn) {
       this.startTimer();
+    }
+  }
+
+  async flush(): Promise<void> {
+    if (!this.flushFn) return;
+
+    if (this.flushPromise) {
+      return this.flushPromise;
+    }
+
+    this.flushPromise = this.flushFn();
+    try {
+      await this.flushPromise;
+    } finally {
+      this.flushPromise = null;
     }
   }
 
   private startTimer = (): void => {
     this.clearTimer();
-    if (this.onFlush) {
-      this.timerId = setInterval(this.onFlush, this.intervalMs);
+    if (this.flushFn) {
+      this.timerId = setInterval(() => void this.flush(), this.intervalMs);
     }
   };
 

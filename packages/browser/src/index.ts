@@ -4,7 +4,6 @@ export {
   track,
   setUserProperty,
   setUserProperties,
-  flushUserProperties,
   flush,
   optOut,
   optIn,

@@ -1,10 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { AbstractAppssClient } from './abstract-client.js';
-import { NotIdentifiedError } from '../../shared/errors/index.js';
 import type { ITransport } from '../../ports/transport.js';
 import type { ILogger } from '../../ports/logger.js';
 import type { IEventQueue } from '../../ports/queue.js';
-import type { ResolvedConfig } from '../../shared/types/config.js';
+import type { AppssConfig, ResolvedConfig } from '../../shared/types/config.js';
 import type { AppssEvent, TransportResponse } from '../../shared/types/wire-protocol.js';
 
 class NoopLogger implements ILogger {
@@ -38,6 +37,11 @@ class TestClient extends AbstractAppssClient {
   transport_ = new TestTransport();
   lifecycleRegistered = false;
 
+  override init(config: AppssConfig): void {
+    super.init(config);
+    this.setSuperProperties({ $lib: 'test' });
+  }
+
   protected createTransport(_config: ResolvedConfig): ITransport { return this.transport_; }
   protected createQueue(_config: ResolvedConfig): IEventQueue { return new TestQueue(); }
   protected createLogger(_config: ResolvedConfig): ILogger { return new NoopLogger(); }
@@ -57,116 +61,73 @@ describe('AbstractAppssClient', () => {
     it('throws on invalid apiKey', () => {
       expect(() => client.init({ apiKey: '' })).toThrow();
     });
-    it('idempotent — cleans up previous state', () => {
+    it('idempotent', () => {
       client.init({ apiKey: 'key' });
-      client.identify('u');
       client.init({ apiKey: 'key2' });
       expect(client.lifecycleRegistered).toBe(true);
-      const onError = vi.fn();
-      client.init({ apiKey: 'key3', onError });
-      client.track('x');
-      expect(onError).toHaveBeenCalledOnce();
-    });
-  });
-
-  describe('identify', () => {
-    it('enables tracking', () => {
-      client.init({ apiKey: 'key' });
-      client.identify('user-1');
-      client.track('test');
-    });
-    it('handles empty distinctId via handleError', () => {
-      const onError = vi.fn();
-      client.init({ apiKey: 'key', onError });
-      client.identify('');
-      expect(onError).toHaveBeenCalledOnce();
-    });
-    it('throws on empty distinctId in debug mode', () => {
-      client.init({ apiKey: 'key', debug: true });
-      expect(() => client.identify('')).toThrow(NotIdentifiedError);
     });
   });
 
   describe('track', () => {
-    it('sends events to /api/v1/events', async () => {
+    it('sends events with distinctId to /api/v1/events', async () => {
       client.init({ apiKey: 'key' });
-      client.identify('user-1');
-      client.track('purchase', { amount: 9.99 });
+      client.track('user-1', 'purchase', { amount: 9.99 });
       await client.flush();
       const eventCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/events');
       expect(eventCalls.length).toBeGreaterThan(0);
+      const batch = (eventCalls[0]?.body as { batch: { distinct_id: string }[] }).batch;
+      expect(batch[0]?.distinct_id).toBe('user-1');
     });
     it('auto-flushes on threshold', async () => {
       client.init({ apiKey: 'key', batchSize: 2 });
-      client.identify('user-1');
-      client.track('a'); client.track('b');
+      client.track('user-1', 'a');
+      client.track('user-1', 'b');
       await new Promise((r) => setTimeout(r, 10));
       const eventCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/events');
       expect(eventCalls.length).toBeGreaterThan(0);
     });
-    it('drops when opted out', async () => {
+    it('skips empty distinctId', () => {
       client.init({ apiKey: 'key' });
-      client.identify('user-1');
-      client.optOut();
-      client.track('x');
-      await client.flush();
+      client.track('', 'event');
       expect(client.transport_.calls).toHaveLength(0);
     });
-    it('throws NotIdentifiedError in debug mode', () => {
-      expect(() => {
-        client.init({ apiKey: 'key', debug: true });
-        client.track('x');
-      }).toThrow(NotIdentifiedError);
-    });
     it('does not crash before init', () => {
-      client.track('x');
+      client.track('user-1', 'x');
     });
-    it('calls onError in prod mode', () => {
-      const onError = vi.fn();
-      client.init({ apiKey: 'key', onError });
-      client.track('x');
-      expect(onError).toHaveBeenCalledOnce();
-      expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(NotIdentifiedError);
+    it('injects $lib into event properties', async () => {
+      client.init({ apiKey: 'key' });
+      client.track('user-1', 'test_event', { foo: 'bar' });
+      await client.flush();
+      const eventCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/events');
+      const body = eventCalls[0]!.body as { batch: Array<{ properties: Record<string, unknown> }> };
+      expect(body.batch[0]!.properties).toHaveProperty('$lib', 'test');
+      expect(body.batch[0]!.properties).toHaveProperty('foo', 'bar');
     });
   });
 
   describe('setUserProperty', () => {
-    it('setUserProperty sends immediately', async () => {
+    it('sends to /api/v1/user-properties', async () => {
       client.init({ apiKey: 'key' });
-      client.identify('user-1');
-      client.setUserProperty('plan', 'pro');
+      client.setUserProperty('user-1', 'plan', 'pro');
       await new Promise((r) => setTimeout(r, 10));
       const propCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/user-properties');
       expect(propCalls).toHaveLength(1);
-      const body = propCalls[0]?.body as { properties: Record<string, unknown> };
-      expect(body.properties['plan']).toBe('pro');
     });
     it('setUserProperties sends all in one request', async () => {
       client.init({ apiKey: 'key' });
-      client.identify('user-1');
-      client.setUserProperties({ a: 1, b: 2 });
+      client.setUserProperties('user-1', { a: 1, b: 2 });
       await new Promise((r) => setTimeout(r, 10));
       const propCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/user-properties');
       expect(propCalls).toHaveLength(1);
-      const body = propCalls[0]?.body as { properties: Record<string, unknown> };
+      const body = propCalls[0]?.body as { distinct_id: string; properties: Record<string, unknown> };
+      expect(body.distinct_id).toBe('user-1');
       expect(body.properties['a']).toBe(1);
-      expect(body.properties['b']).toBe(2);
-    });
-  });
-
-  describe('consent', () => {
-    it('works before init', () => {
-      expect(client.isOptedOut()).toBe(false);
-      client.optOut();
-      expect(client.isOptedOut()).toBe(true);
-      client.optIn();
-      expect(client.isOptedOut()).toBe(false);
     });
   });
 
   describe('flush', () => {
     it('noop before init', async () => {
-      await client.flush(); // should not crash
+      await client.flush();
       expect(client.transport_.calls).toHaveLength(0);
     });
   });
@@ -174,14 +135,13 @@ describe('AbstractAppssClient', () => {
   describe('destroy', () => {
     it('flushes and cleans up', async () => {
       client.init({ apiKey: 'key' });
-      client.identify('u');
-      client.track('final');
+      client.track('user-1', 'final');
       await client.destroy();
       expect(client.lifecycleRegistered).toBe(false);
       expect(client.transport_.calls.length).toBeGreaterThan(0);
     });
     it('noop before init', async () => {
-      await client.destroy(); // should not crash
+      await client.destroy();
     });
   });
 
@@ -189,12 +149,11 @@ describe('AbstractAppssClient', () => {
     it('stops future flushes', async () => {
       client.transport_.response = { statusCode: 401, headers: {} };
       client.init({ apiKey: 'key' });
-      client.identify('u');
-      client.track('trigger_401');
+      client.track('user-1', 'trigger_401');
       await client.flush();
       expect(client.transport_.calls).toHaveLength(1);
 
-      client.track('after_revoke');
+      client.track('user-1', 'after_revoke');
       await client.flush();
       expect(client.transport_.calls).toHaveLength(1);
     });

@@ -11,16 +11,14 @@ import type { AppssError } from '../../shared/errors/appss-error.js';
 
 import { validateConfig, resolveConfig } from '../../shared/config/config.js';
 import { ErrorCode } from '../../shared/errors/error-codes.js';
-import { Readiness, ReadinessGuard } from '../../domain/readiness/readiness-guard.js';
-import { IdentityManager } from '../../domain/identity/identity-manager.js';
-import { ConsentManager } from '../../domain/consent/consent-manager.js';
 import { FlushPolicy } from '../../domain/queue/flush-policy.js';
 import { RetryPolicy } from '../../domain/transport/retry-policy.js';
 import { buildEvent, eventToPayload } from '../../domain/event/event-builder.js';
-import { NotInitializedError, NotIdentifiedError } from '../../shared/errors/index.js';
+import { NotInitializedError } from '../../shared/errors/index.js';
 import { EVENTS_PATH, USER_PROPERTIES_PATH } from '../../shared/constants.js';
 import { BatchDispatcher } from '../dispatcher/batch-dispatcher.js';
 import { buildHeaders } from '../headers/header-builder.js';
+import { EventEnricher } from '../enrichment/event-enricher.js';
 
 export abstract class AbstractAppssClient {
   private config: ResolvedConfig | null = null;
@@ -28,11 +26,9 @@ export abstract class AbstractAppssClient {
   private transport: ITransport | null = null;
   private queue: IEventQueue | null = null;
   private dispatcher: BatchDispatcher | null = null;
-  private readiness = new ReadinessGuard();
-  private identity = new IdentityManager();
-  private consent = new ConsentManager();
   private flushPolicy: FlushPolicy | null = null;
-  private flushPromise: Promise<void> | null = null;
+  private initialized = false;
+  private readonly enricher = new EventEnricher();
 
   protected abstract createTransport(config: ResolvedConfig): ITransport;
   protected abstract createQueue(config: ResolvedConfig): IEventQueue;
@@ -41,7 +37,7 @@ export abstract class AbstractAppssClient {
   protected abstract unregisterLifecycleHandlers(): void;
 
   init(config: AppssConfig): void {
-    if (this.readiness.isConfigured()) {
+    if (this.initialized) {
       this.destroySync();
     }
 
@@ -49,94 +45,100 @@ export abstract class AbstractAppssClient {
     this.config = resolveConfig(config);
     this.logger = config.logger ?? this.createLogger(this.config);
     this.transport = this.createTransport(this.config);
-    this.queue = this.createQueue(this.config);
+    this.queue = config.queue ?? this.createQueue(this.config);
     this.dispatcher = new BatchDispatcher(
       this.transport,
       new RetryPolicy(this.config.retry),
       this.logger,
     );
-    this.identity = new IdentityManager();
-    this.consent = new ConsentManager();
     this.flushPolicy = new FlushPolicy(this.config.flushInterval);
 
-    this.flushPolicy.start(() => void this.flush());
+    this.flushPolicy.start(() => this.doFlush());
     this.registerLifecycleHandlers();
-    this.readiness.transition(Readiness.Configured);
+    this.initialized = true;
 
     this.logger.info('SDK initialized', { endpoint: this.config.endpoint });
   }
 
   async destroy(): Promise<void> {
-    if (!this.readiness.isConfigured()) return;
+    if (!this.initialized) return;
 
-    await this.flushUserProperties();
     await this.flush();
     this.destroySync();
 
     this.logger?.info('SDK destroyed');
   }
 
-  identify(distinctId: string): void {
-    if (!this.guardConfigured()) return;
+  track(distinctId: string, event: string, properties?: EventProperties): void {
+    if (!this.guardInitialized()) return;
+    if (!distinctId || distinctId.trim().length === 0) return;
 
-    if (!distinctId || distinctId.trim().length === 0) {
-      this.handleError(new NotIdentifiedError('distinctId is required and cannot be empty.'));
-      return;
-    }
-
-    this.identity.identify(distinctId);
-    this.readiness.transition(Readiness.Ready);
-
-    this.logger?.info('User identified', { distinctId });
-  }
-
-  setUserProperty(key: string, value: unknown): void {
-    if (!this.guardReady()) return;
-    this.identity.setUserProperty(key, value);
-    void this.flushUserProperties();
-  }
-
-  setUserProperties(properties: Record<string, unknown>): void {
-    if (!this.guardReady()) return;
-    for (const [key, value] of Object.entries(properties)) {
-      this.identity.setUserProperty(key, value);
-    }
-    void this.flushUserProperties();
-  }
-
-  track(event: string, properties?: EventProperties): void {
-    if (!this.guardReady()) return;
-
-    if (this.consent.isOptedOut()) {
-      this.logger?.debug('Event dropped: opted out', { event });
-      return;
-    }
-
-    const appssEvent = buildEvent({
-      event,
-      distinctId: this.identity.getDistinctId() ?? '',
-      properties,
-    });
+    const enrichedProperties = this.enricher.enrich(properties);
+    const appssEvent = buildEvent({ event, distinctId, properties: enrichedProperties });
 
     this.queue?.enqueue(appssEvent);
-    this.logger?.debug('Event enqueued', { event, queueSize: this.queue?.size() ?? 0 });
+    this.logger?.debug('Event enqueued', { event, distinctId, queueSize: this.queue?.size() ?? 0 });
 
     if ((this.queue?.size() ?? 0) >= (this.config?.batchSize ?? Infinity)) {
       void this.flush();
     }
   }
 
+  setUserProperty(distinctId: string, key: string, value: unknown): void {
+    if (!this.guardInitialized()) return;
+    if (!distinctId) return;
+
+    void this.sendUserProperties(distinctId, { [key]: value });
+  }
+
+  setUserProperties(distinctId: string, properties: Record<string, unknown>): void {
+    if (!this.guardInitialized()) return;
+    if (!distinctId) return;
+
+    void this.sendUserProperties(distinctId, properties);
+  }
+
   async flush(): Promise<void> {
-    if (this.flushPromise) {
-      return this.flushPromise;
+    if (!this.flushPolicy) return;
+    return this.flushPolicy.flush();
+  }
+
+  setSuperProperties(properties: Record<string, unknown>): void {
+    this.enricher.setAll(properties);
+  }
+
+  resetSuperProperties(): void {
+    this.enricher.reset();
+  }
+
+  protected handleError(error: AppssError): void {
+    if (this.config?.debug && error.code === ErrorCode.NOT_INITIALIZED) {
+      throw error;
     }
 
-    this.flushPromise = this.doFlush();
-    try {
-      await this.flushPromise;
-    } finally {
-      this.flushPromise = null;
+    if (error.severity === 'warn') {
+      this.logger?.warn(error.message, { code: error.code });
+    } else {
+      this.logger?.error(error.message, { code: error.code });
     }
+
+    try {
+      this.config?.onError?.(error);
+    } catch {
+      /* noop */
+    }
+  }
+
+  private guardInitialized(): boolean {
+    if (this.initialized) return true;
+    this.handleError(new NotInitializedError());
+    return false;
+  }
+
+  private destroySync(): void {
+    this.flushPolicy?.stop();
+    this.unregisterLifecycleHandlers();
+    this.initialized = false;
   }
 
   private async doFlush(): Promise<void> {
@@ -150,21 +152,10 @@ export abstract class AbstractAppssClient {
     await this.sendBatchWithSplit(payloads, headers);
   }
 
-  optOut(): void {
-    this.consent.optOut();
-    this.logger?.info('Tracking opted out');
-  }
-
-  optIn(): void {
-    this.consent.optIn();
-    this.logger?.info('Tracking opted in');
-  }
-
-  isOptedOut(): boolean {
-    return this.consent.isOptedOut();
-  }
-
-  private async sendBatchWithSplit(batch: EventPayload[], headers: Record<string, string>): Promise<void> {
+  private async sendBatchWithSplit(
+    batch: EventPayload[],
+    headers: Record<string, string>,
+  ): Promise<void> {
     if (!this.queue || !this.dispatcher) return;
 
     const result = await this.dispatcher.dispatch(EVENTS_PATH, { batch }, headers);
@@ -185,67 +176,18 @@ export abstract class AbstractAppssClient {
     }
   }
 
-  async flushUserProperties(): Promise<void> {
+  private async sendUserProperties(
+    distinctId: string,
+    properties: Record<string, unknown>,
+  ): Promise<void> {
     if (!this.config || !this.dispatcher) return;
 
-    const props = this.identity.peekPendingProperties();
-    if (!props) return;
-
-    const distinctId = this.identity.getDistinctId();
-    if (!distinctId) return;
-
-    const body: UserPropertiesRequest = {
-      distinct_id: distinctId,
-      properties: props,
-    };
+    const body: UserPropertiesRequest = { distinct_id: distinctId, properties };
     const headers = buildHeaders(this.config);
     const result = await this.dispatcher.dispatch(USER_PROPERTIES_PATH, body, headers);
 
-    if (result.success) {
-      this.identity.clearPendingProperties();
-    }
     if (result.error) {
       this.handleError(result.error);
     }
-  }
-
-  private guardConfigured(): boolean {
-    if (this.readiness.isConfigured()) return true;
-    this.handleError(new NotInitializedError());
-    return false;
-  }
-
-  private guardReady(): boolean {
-    if (this.readiness.canTrack()) return true;
-    this.handleError(
-      this.readiness.canIdentify() ? new NotIdentifiedError() : new NotInitializedError(),
-    );
-    return false;
-  }
-
-  private destroySync(): void {
-    this.flushPolicy?.stop();
-    this.unregisterLifecycleHandlers();
-    this.identity.reset();
-    this.readiness.reset();
-  }
-
-  private handleError(error: AppssError): void {
-    if (
-      this.config?.debug &&
-      (error.code === ErrorCode.NOT_INITIALIZED || error.code === ErrorCode.NOT_IDENTIFIED)
-    ) {
-      throw error;
-    }
-
-    if (error.severity === 'warn') {
-      this.logger?.warn(error.message, { code: error.code });
-    } else {
-      this.logger?.error(error.message, { code: error.code });
-    }
-
-    try {
-      this.config?.onError?.(error);
-    } catch { /* noop */ }
   }
 }

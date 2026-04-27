@@ -1,6 +1,6 @@
 export const SDK_NAME = '@appss-sdk' as const;
-export const SDK_VERSION = '0.1.0' as const;
-export const DEFAULT_ENDPOINT = 'http://157.90.231.51:5123' as const;
+export const SDK_VERSION = '0.2.0' as const;
+export const DEFAULT_ENDPOINT = 'https://appss-event-tracker-back-p.engagelabs.org' as const;
 export const DEFAULT_BATCH_SIZE = 50;
 export const DEFAULT_FLUSH_INTERVAL_MS = 10_000;
 export const MAX_QUEUE_SIZE = 10_000;

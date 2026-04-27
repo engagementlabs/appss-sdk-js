@@ -8,20 +8,67 @@ import {
   type ILogger,
 } from '@appss/sdk-core';
 
+import { SDK_PLATFORM } from './constants.js';
 import { FetchTransport } from './transport/fetch-transport.js';
 import { PersistentQueue } from './queue/persistent-queue.js';
 import { ConsoleLogger } from './logger/console-logger.js';
 import { NoopLogger } from './logger/noop-logger.js';
 import { PageLifecycleManager } from './lifecycle/page-lifecycle.js';
-import { extractTmaUser, extractTmaProperties } from './identity/tma-context.js';
-import { getOrCreateAnonymousId } from './identity/anonymous-id.js';
+import { BrowserIdentityManager } from './identity/identity-manager.js';
+import { BrowserConsentManager } from './consent/consent-manager.js';
 
 export class BrowserAppssClient extends AbstractAppssClient {
   private lifecycle: PageLifecycleManager | null = null;
+  private readonly identity = new BrowserIdentityManager();
+  private readonly consent = new BrowserConsentManager();
 
   override init(config: AppssConfig): void {
     super.init(config);
-    this.autoIdentify();
+    this.setSuperProperties({ $lib: SDK_PLATFORM });
+    const tmaProps = this.identity.autoIdentify();
+    if (tmaProps) {
+      this.setProperties(tmaProps);
+    }
+  }
+
+  identify(distinctId: string): void {
+    this.identity.identify(distinctId);
+  }
+
+  override track(distinctId: string, event: string, properties?: Record<string, unknown>): void {
+    if (this.consent.isOptedOut()) return;
+    super.track(distinctId, event, properties);
+  }
+
+  trackEvent(event: string, properties?: Record<string, unknown>): void {
+    if (this.consent.isOptedOut()) return;
+    const id = this.identity.getDistinctId();
+    if (!id) return;
+    this.track(id, event, properties);
+  }
+
+  setProperty(key: string, value: unknown): void {
+    const id = this.identity.getDistinctId();
+    if (!id) return;
+    this.setUserProperty(id, key, value);
+  }
+
+  setProperties(properties: Record<string, unknown>): void {
+    const id = this.identity.getDistinctId();
+    if (!id) return;
+    this.setUserProperties(id, properties);
+  }
+
+  optOut(): void {
+    this.consent.optOut();
+  }
+
+  optIn(): void {
+    this.consent.optIn();
+  }
+
+  isOptedOut(): boolean {
+    return this.consent.isOptedOut();
   }
 
   protected createTransport(config: ResolvedConfig): ITransport {
@@ -47,19 +94,5 @@ export class BrowserAppssClient extends AbstractAppssClient {
   protected unregisterLifecycleHandlers(): void {
     this.lifecycle?.unregister();
     this.lifecycle = null;
-  }
-
-  private autoIdentify(): void {
-    const tmaUser = extractTmaUser();
-
-    if (tmaUser) {
-      this.identify(String(tmaUser.id));
-      this.setUserProperties(extractTmaProperties());
-      void this.flushUserProperties();
-      return;
-    }
-
-    const anonymousId = getOrCreateAnonymousId();
-    this.identify(anonymousId);
   }
 }

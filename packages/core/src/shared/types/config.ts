@@ -1,4 +1,5 @@
 import type { ILogger } from '../../ports/logger.js';
+import type { IEventQueue } from '../../ports/queue.js';
 import type { OnErrorCallback } from './callbacks.js';
 
 export interface RetryConfig {
@@ -16,6 +17,7 @@ export interface ResolvedConfig {
   retry: RetryConfig;
   debug: boolean;
   logger?: ILogger;
+  queue?: IEventQueue;
   onError?: OnErrorCallback;
   requestTimeout: number;
 }

@@ -3,6 +3,7 @@ export type {
   ResolvedConfig,
   RetryConfig,
   OnErrorCallback,
+  AppssEvent,
   EventProperties,
   UserProperties,
   TransportResponse,
