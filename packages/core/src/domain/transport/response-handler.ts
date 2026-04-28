@@ -2,6 +2,8 @@ import type { TransportResponse } from '../../shared/types/wire-protocol.js';
 import type { HandleResult } from '../../shared/types/internal.js';
 import { TransportAction } from '../../shared/types/internal.js';
 import { ErrorCode } from '../../shared/errors/error-codes.js';
+import { MAX_BACKOFF_MS } from '../../shared/constants.js';
+import { clampPositiveFinite } from '../../shared/utils/validation.js';
 
 export function handleResponse(response: TransportResponse): HandleResult {
   const { statusCode } = response;
@@ -24,7 +26,10 @@ export function handleResponse(response: TransportResponse): HandleResult {
 
   if (statusCode === 429) {
     const retryAfterHeader = response.headers['retry-after'];
-    const retryAfterMs = retryAfterHeader ? parseFloat(retryAfterHeader) * 1000 : undefined;
+    const retryAfterMs = clampPositiveFinite(
+      retryAfterHeader ? parseFloat(retryAfterHeader) * 1000 : undefined,
+      MAX_BACKOFF_MS,
+    );
     return {
       action: TransportAction.RATE_LIMIT,
       retryAfterMs,

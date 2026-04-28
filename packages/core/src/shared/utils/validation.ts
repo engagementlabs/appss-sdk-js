@@ -15,3 +15,8 @@ export function assertNonNegativeInteger(value: number | undefined, name: string
     throw new TypeError(`${name} must be a non-negative integer.`);
   }
 }
+
+export function clampPositiveFinite(value: number | undefined, max: number): number | undefined {
+  if (value === undefined || !Number.isFinite(value) || value <= 0) return undefined;
+  return Math.min(value, max);
+}

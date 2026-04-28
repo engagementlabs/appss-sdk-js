@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertPositiveNumber, assertPositiveInteger, assertNonNegativeInteger } from './validation.js';
+import { assertPositiveNumber, assertPositiveInteger, assertNonNegativeInteger, clampPositiveFinite } from './validation.js';
 
 describe('assertPositiveNumber', () => {
   it('does nothing for undefined', () => {
@@ -106,5 +106,35 @@ describe('assertNonNegativeInteger', () => {
     expect(() => assertNonNegativeInteger(-1, 'maxRetries')).toThrow(
       'maxRetries must be a non-negative integer.',
     );
+  });
+});
+
+describe('clampPositiveFinite', () => {
+  it('returns undefined for undefined', () => {
+    expect(clampPositiveFinite(undefined, 1000)).toBeUndefined();
+  });
+
+  it('returns value when within max', () => {
+    expect(clampPositiveFinite(500, 1000)).toBe(500);
+  });
+
+  it('clamps to max when value exceeds it', () => {
+    expect(clampPositiveFinite(5000, 1000)).toBe(1000);
+  });
+
+  it('returns undefined for NaN', () => {
+    expect(clampPositiveFinite(NaN, 1000)).toBeUndefined();
+  });
+
+  it('returns undefined for Infinity', () => {
+    expect(clampPositiveFinite(Infinity, 1000)).toBeUndefined();
+  });
+
+  it('returns undefined for zero', () => {
+    expect(clampPositiveFinite(0, 1000)).toBeUndefined();
+  });
+
+  it('returns undefined for negative', () => {
+    expect(clampPositiveFinite(-100, 1000)).toBeUndefined();
   });
 });
