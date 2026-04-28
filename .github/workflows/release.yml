@@ -25,7 +25,9 @@ jobs:
         with:
           node-version: 20
           cache: yarn
-          registry-url: https://registry.npmjs.org
+
+      - name: Update npm for OIDC support
+        run: npm install -g npm@latest
 
       - run: yarn install --frozen-lockfile
 
@@ -61,14 +63,14 @@ jobs:
       - name: Publish @appss/sdk-core
         if: contains(steps.bump.outputs.packages, '@appss/sdk-core')
         working-directory: packages/core
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --registry https://registry.npmjs.org
 
       - name: Publish @appss/sdk-browser
         if: contains(steps.bump.outputs.packages, '@appss/sdk-browser')
         working-directory: packages/browser
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --registry https://registry.npmjs.org
 
       - name: Publish @appss/sdk-node
         if: contains(steps.bump.outputs.packages, '@appss/sdk-node')
         working-directory: packages/node
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --registry https://registry.npmjs.org
