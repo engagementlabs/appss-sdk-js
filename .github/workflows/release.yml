@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,20 +60,14 @@ jobs:
       - name: Publish @appss/sdk-core
         if: contains(steps.bump.outputs.packages, '@appss/sdk-core')
         working-directory: packages/core
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
 
       - name: Publish @appss/sdk-browser
         if: contains(steps.bump.outputs.packages, '@appss/sdk-browser')
         working-directory: packages/browser
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
 
       - name: Publish @appss/sdk-node
         if: contains(steps.bump.outputs.packages, '@appss/sdk-node')
         working-directory: packages/node
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
