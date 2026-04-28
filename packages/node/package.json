@@ -1,6 +1,6 @@
 {
   "name": "@appss/sdk-node",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "APPSS analytics SDK for Node.js (Telegram bots, servers)",
   "keywords": [
     "analytics",
@@ -11,7 +11,12 @@
     "bot"
   ],
   "type": "module",
-  "license": "MIT",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/engagementlabs/appss-sdk-js",
+    "directory": "packages/node"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -42,6 +47,6 @@
     "clean": "rm -rf dist .turbo coverage"
   },
   "dependencies": {
-    "@appss/sdk-core": "0.3.0"
+    "@appss/sdk-core": "0.4.0"
   }
 }

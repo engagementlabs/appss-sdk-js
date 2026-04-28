@@ -52,24 +52,45 @@ Sends an event for a specific user.
 appss.track('user-123', 'message_sent', { chat_type: 'private' });
 ```
 
-### `appss.identify(distinctId, properties?)`
+### `appss.setSuperProperties(properties)`
 
-Sets user properties for a specific user. Sends them to the server immediately.
+Sets properties that are automatically attached to every subsequent event. Useful for environment info, app version, or any context shared across all events.
 
 ```ts
-appss.identify('user-123', {
-  username: 'johndoe',
-  first_name: 'John',
-  plan: 'pro',
-});
+appss.setSuperProperties({ env: 'production', app_version: '2.1.0' });
+
+appss.track('user-123', 'action'); // { env: 'production', app_version: '2.1.0', $lib: 'node' }
+appss.track('user-456', 'action'); // same super properties attached
+```
+
+Super properties override event properties with the same key.
+
+### `appss.resetSuperProperties()`
+
+Clears all super properties.
+
+```ts
+appss.resetSuperProperties();
 ```
 
 ### `appss.setUserProperty(distinctId, key, value)`
 
-Sets a single user property.
+Sets a single user property. Sends to the server immediately.
 
 ```ts
 appss.setUserProperty('user-123', 'plan', 'enterprise');
+```
+
+### `appss.setUserProperties(distinctId, properties)`
+
+Sets multiple user properties at once.
+
+```ts
+appss.setUserProperties('user-123', {
+  username: 'johndoe',
+  first_name: 'John',
+  plan: 'pro',
+});
 ```
 
 ### `appss.flush()`
@@ -78,17 +99,6 @@ Forces immediate delivery of all queued events.
 
 ```ts
 await appss.flush();
-```
-
-### `appss.optOut(distinctId)` / `appss.optIn(distinctId)` / `appss.isOptedOut(distinctId)`
-
-Per-user consent controls.
-
-```ts
-appss.optOut('user-123');
-appss.track('user-123', 'ignored');  // silently dropped
-appss.optIn('user-123');
-appss.isOptedOut('user-123');        // false
 ```
 
 ### `appss.destroy()`
@@ -111,7 +121,7 @@ const appss = createAppss({ apiKey: 'your-api-key' });
 bot.use((ctx, next) => {
   const user = fromTelegrafContext(ctx);
   if (user) {
-    appss.identify(user.distinctId, user.properties);
+    appss.setUserProperties(user.distinctId, user.properties);
   }
   return next();
 });
@@ -139,7 +149,7 @@ const appss = createAppss({ apiKey: 'your-api-key' });
 bot.use((ctx, next) => {
   const user = fromGrammyContext(ctx);
   if (user) {
-    appss.identify(user.distinctId, user.properties);
+    appss.setUserProperties(user.distinctId, user.properties);
   }
   return next();
 });
@@ -157,9 +167,26 @@ bot.start();
 
 ## Helper functions
 
-`fromTelegrafContext(ctx)` and `fromGrammyContext(ctx)` extract user data from bot framework context objects. They accept `any` and have no peer dependencies on Telegraf or grammY.
+`fromTelegrafContext(ctx)` and `fromGrammyContext(ctx)` extract user data from bot framework context objects. They accept `unknown` and have no peer dependencies on Telegraf or grammY.
 
-Extracted fields:
+Returns `ExtractedContext | null`:
+
+```ts
+interface ExtractedContext {
+  distinctId: string;
+  properties: TelegramUserProperties;
+}
+
+interface TelegramUserProperties {
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  language_code?: string;
+  is_premium?: boolean;
+  chat_type?: string;
+  $start_param?: string;
+}
+```
 
 | Property | Source |
 |----------|--------|
@@ -176,22 +203,24 @@ Returns `null` if the context doesn't contain a valid user.
 
 ## Custom queue
 
-By default, events are stored in an in-memory queue. You can provide your own implementation (Redis, RabbitMQ, etc.) via the `queue` config option:
+By default, events are stored in an in-memory queue. You can provide your own implementation via the `queue` config option:
 
 ```ts
 import { createAppss, type IEventQueue } from '@appss/sdk-node';
 
-const redisQueue: IEventQueue = {
-  enqueue(event) { /* RPUSH */ },
-  drain(n) { /* LPOP n items */ },
-  peek(n) { /* LRANGE 0 n-1 */ },
-  size() { /* LLEN */ },
-  isEmpty() { /* LLEN === 0 */ },
-  clear() { /* DEL key */ },
+const customQueue: IEventQueue = {
+  enqueue(event) { /* ... */ },
+  drain(n) { /* ... */ },
+  peek(n) { /* ... */ },
+  size() { /* ... */ },
+  isEmpty() { /* ... */ },
+  clear() { /* ... */ },
 };
 
-const appss = createAppss({ apiKey: 'key', queue: redisQueue });
+const appss = createAppss({ apiKey: 'key', queue: customQueue });
 ```
+
+Note: `IEventQueue` methods are synchronous. If your backing store is async, you'll need a local buffer with background sync.
 
 ## Graceful shutdown
 
@@ -216,6 +245,8 @@ const appss = createAppss({
 
 ## What this SDK does NOT do
 
+- **No consent management.** Consent (opt-in/opt-out) is handled by the browser SDK.
+- **No user identification.** The caller passes `distinctId` explicitly with every call.
 - **No session tracking.** No sessions, session duration, or session IDs.
 - **No feature flags.** Pure analytics SDK.
 - **No fingerprinting.** No device fingerprints or IP-based geolocation.
@@ -224,4 +255,4 @@ const appss = createAppss({
 
 ## License
 
-MIT
+Apache-2.0

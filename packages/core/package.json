@@ -1,6 +1,6 @@
 {
   "name": "@appss/sdk-core",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Core module for APPSS analytics SDK",
   "keywords": [
     "analytics",
@@ -10,7 +10,12 @@
     "tma"
   ],
   "type": "module",
-  "license": "MIT",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/engagementlabs/appss-sdk-js",
+    "directory": "packages/core"
+  },
   "publishConfig": {
     "access": "public"
   },
