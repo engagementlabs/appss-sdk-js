@@ -2,6 +2,18 @@
 # yarn lockfile v1
 
 
+"@appss/sdk-browser@0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@appss/sdk-browser/-/sdk-browser-0.1.0.tgz#4d3a683b14ef5f1d8494b58eb68ef10d87adced2"
+  integrity sha512-o26sWfQUPT0lP32T9j+tprosv3j+eP2Ctam6cJvc/NWgEbra9dIM8Tnft4ztq7j3gj84W+RtuWODZcTcmC7BnQ==
+  dependencies:
+    "@appss/sdk-core" "0.1.0"
+
+"@appss/sdk-core@0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@appss/sdk-core/-/sdk-core-0.1.0.tgz#4bba875c40050e0be96f89451032f4d93d6698b4"
+  integrity sha512-Jo88qKtqDemS/rht91//oVsusLMds8FSEuNdsUtkpQddBudlOp1PdCXKmrLA46NGY+PRCBv+8hVGgcNY6yMNrQ==
+
 "@asamuzakjp/css-color@^5.1.5":
   version "5.1.11"
   resolved "https://registry.yarnpkg.com/@asamuzakjp/css-color/-/css-color-5.1.11.tgz#28a0aac8220a4cc19045ac3bd9a813d4060bd375"
@@ -1522,6 +1534,11 @@ html-escaper@^2.0.0:
   version "2.0.2"
   resolved "https://registry.yarnpkg.com/html-escaper/-/html-escaper-2.0.2.tgz#dfd60027da36a36dfcbe236262c00a5822681453"
   integrity sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==
+
+husky@^9.1.7:
+  version "9.1.7"
+  resolved "https://registry.yarnpkg.com/husky/-/husky-9.1.7.tgz#d46a38035d101b46a70456a850ff4201344c0b2d"
+  integrity sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==
 
 ignore@^5.2.0:
   version "5.3.2"

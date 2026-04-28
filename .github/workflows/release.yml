@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          registry-url: https://registry.npmjs.org
+
+      - run: yarn install --frozen-lockfile
+
+      - name: Test all packages
+        run: npx turbo run test
+
+      - name: Build all packages
+        run: npx turbo run build
+
+      - name: Detect changes and bump versions
+        id: bump
+        run: |
+          result=$(node scripts/release.mjs)
+          echo "packages=$result" >> $GITHUB_OUTPUT
+
+      - name: Commit version bumps
+        if: steps.bump.outputs.packages != '[]'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/*/package.json
+          git commit -m "chore: bump package versions [skip ci]" || true
+          git push
+
+      - name: Create release tag
+        if: steps.bump.outputs.packages != '[]'
+        run: |
+          TAG="v$(node -p "require('./packages/core/package.json').version")"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Publish @appss/sdk-core
+        if: contains(steps.bump.outputs.packages, '@appss/sdk-core')
+        working-directory: packages/core
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @appss/sdk-browser
+        if: contains(steps.bump.outputs.packages, '@appss/sdk-browser')
+        working-directory: packages/browser
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @appss/sdk-node
+        if: contains(steps.bump.outputs.packages, '@appss/sdk-node')
+        working-directory: packages/node
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

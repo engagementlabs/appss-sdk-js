@@ -7,7 +7,10 @@ export type {
   EventProperties,
   UserProperties,
   TransportResponse,
+  DistinctId,
 } from './shared/types/index.js';
+
+export { resolveDistinctId } from './shared/types/index.js';
 
 export type { ITransport } from './ports/transport.js';
 export type { IEventQueue } from './ports/queue.js';

@@ -2,11 +2,13 @@ import type { ITransport } from '../../ports/transport.js';
 import type { IEventQueue } from '../../ports/queue.js';
 import type { ILogger } from '../../ports/logger.js';
 import type { AppssConfig, ResolvedConfig } from '../../shared/types/config.js';
+import type { DistinctId } from '../../shared/types/distinct-id.js';
 import type {
   EventProperties,
   EventPayload,
   UserPropertiesRequest,
 } from '../../shared/types/wire-protocol.js';
+import { resolveDistinctId } from '../../shared/types/distinct-id.js';
 import type { AppssError } from '../../shared/errors/appss-error.js';
 
 import { validateConfig, resolveConfig } from '../../shared/config/config.js';
@@ -69,33 +71,36 @@ export abstract class AbstractAppssClient {
     this.logger?.info('SDK destroyed');
   }
 
-  track(distinctId: string, event: string, properties?: EventProperties): void {
+  track(distinctId: DistinctId, event: string, properties?: EventProperties): void {
     if (!this.guardInitialized()) return;
-    if (!distinctId || distinctId.trim().length === 0) return;
+    const id = resolveDistinctId(distinctId);
+    if (!id) return;
 
     const enrichedProperties = this.enricher.enrich(properties);
-    const appssEvent = buildEvent({ event, distinctId, properties: enrichedProperties });
+    const appssEvent = buildEvent({ event, distinctId: id, properties: enrichedProperties });
 
     this.queue?.enqueue(appssEvent);
-    this.logger?.debug('Event enqueued', { event, distinctId, queueSize: this.queue?.size() ?? 0 });
+    this.logger?.debug('Event enqueued', { event, distinctId: id, queueSize: this.queue?.size() ?? 0 });
 
     if ((this.queue?.size() ?? 0) >= (this.config?.batchSize ?? Infinity)) {
       void this.flush();
     }
   }
 
-  setUserProperty(distinctId: string, key: string, value: unknown): void {
+  setUserProperty(distinctId: DistinctId, key: string, value: unknown): void {
     if (!this.guardInitialized()) return;
-    if (!distinctId) return;
+    const id = resolveDistinctId(distinctId);
+    if (!id) return;
 
-    void this.sendUserProperties(distinctId, { [key]: value });
+    void this.sendUserProperties(id, { [key]: value });
   }
 
-  setUserProperties(distinctId: string, properties: Record<string, unknown>): void {
+  setUserProperties(distinctId: DistinctId, properties: Record<string, unknown>): void {
     if (!this.guardInitialized()) return;
-    if (!distinctId) return;
+    const id = resolveDistinctId(distinctId);
+    if (!id) return;
 
-    void this.sendUserProperties(distinctId, properties);
+    void this.sendUserProperties(id, properties);
   }
 
   async flush(): Promise<void> {

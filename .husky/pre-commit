@@ -1,0 +1,2 @@
+npx turbo run test --filter='...[HEAD]'
+npx turbo run build --filter='...[HEAD]'
