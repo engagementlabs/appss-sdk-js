@@ -48,6 +48,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add packages/*/package.json
           git commit -m "chore: bump package versions [skip ci]" || true
+          git pull --rebase
           git push
 
       - name: Create release tag
