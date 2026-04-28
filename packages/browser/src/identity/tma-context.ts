@@ -33,6 +33,7 @@ export function extractTmaProperties(): Record<string, unknown> {
       if (user.username) props['username'] = user.username;
       if (user.language_code) props['language_code'] = user.language_code;
       if (user.is_premium !== undefined) props['is_premium'] = user.is_premium;
+      if (user.id !== undefined) props['telegram_id'] = user.id;
     }
 
     if (webapp.platform) props['platform'] = webapp.platform;
@@ -41,7 +42,9 @@ export function extractTmaProperties(): Record<string, unknown> {
 
     const startParam = webapp.initDataUnsafe?.start_param?.trim();
     if (startParam) props['$start_param'] = startParam;
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 
   return props;
 }

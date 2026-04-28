@@ -6,6 +6,7 @@ import {
   type ITransport,
   type IEventQueue,
   type ILogger,
+  type DistinctId,
 } from '@appss/sdk-core';
 
 import { SDK_PLATFORM } from './constants.js';
@@ -35,7 +36,7 @@ export class BrowserAppssClient extends AbstractAppssClient {
     this.identity.identify(distinctId);
   }
 
-  override track(distinctId: string, event: string, properties?: Record<string, unknown>): void {
+  override track(distinctId: DistinctId, event: string, properties?: Record<string, unknown>): void {
     if (this.consent.isOptedOut()) return;
     super.track(distinctId, event, properties);
   }
