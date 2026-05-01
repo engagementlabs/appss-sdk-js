@@ -1,6 +1,6 @@
 {
   "name": "@appss/sdk-browser",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "APPSS analytics SDK for browser and Telegram Mini Apps",
   "keywords": [
     "analytics",
@@ -48,6 +48,6 @@
     "clean": "rm -rf dist .turbo coverage"
   },
   "dependencies": {
-    "@appss/sdk-core": "0.4.6"
+    "@appss/sdk-core": "0.4.7"
   }
 }
