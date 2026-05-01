@@ -15,3 +15,4 @@ export const USER_PROPERTIES_PATH = '/api/v1/user-properties' as const;
 export const REQUEST_TIMEOUT_MS = 30_000;
 export const SHUTDOWN_TIMEOUT_MS = 5_000;
 export const STORAGE_KEY_PREFIX = '__appss_' as const;
+export const PURCHASE_EVENT = '$purchase' as const;

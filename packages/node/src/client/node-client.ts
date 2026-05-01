@@ -1,4 +1,4 @@
-import type { AppssConfig, DistinctId } from '@appss/sdk-core';
+import type { AppssConfig, DistinctId, EventName, TrackArgs } from '@appss/sdk-core';
 import { NodeInternalClient } from './internal-client.js';
 
 export class AppssNodeClient {
@@ -17,8 +17,8 @@ export class AppssNodeClient {
     this.client.resetSuperProperties();
   }
 
-  track(distinctId: DistinctId, event: string, properties?: Record<string, unknown>): void {
-    this.client.track(distinctId, event, properties);
+  track<E extends EventName>(distinctId: DistinctId, event: E, ...args: TrackArgs<E>): void {
+    this.client.track(distinctId, event, ...args);
   }
 
   setUserProperty(distinctId: DistinctId, key: string, value: unknown): void {

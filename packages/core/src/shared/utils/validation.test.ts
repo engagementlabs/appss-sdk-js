@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertPositiveNumber, assertPositiveInteger, assertNonNegativeInteger, clampPositiveFinite } from './validation.js';
+import { assertPositiveNumber, assertPositiveInteger, assertNonNegativeInteger, assertFiniteNumber, assertNonEmptyString, clampPositiveFinite } from './validation.js';
 
 describe('assertPositiveNumber', () => {
   it('does nothing for undefined', () => {
@@ -136,5 +136,48 @@ describe('clampPositiveFinite', () => {
 
   it('returns undefined for negative', () => {
     expect(clampPositiveFinite(-100, 1000)).toBeUndefined();
+  });
+});
+
+describe('assertFiniteNumber', () => {
+  it('passes for finite numbers', () => {
+    expect(() => assertFiniteNumber(0, 'f')).not.toThrow();
+    expect(() => assertFiniteNumber(42, 'f')).not.toThrow();
+    expect(() => assertFiniteNumber(-9.99, 'f')).not.toThrow();
+  });
+
+  it('throws for NaN', () => {
+    expect(() => assertFiniteNumber(NaN, 'f')).toThrow(TypeError);
+  });
+
+  it('throws for Infinity', () => {
+    expect(() => assertFiniteNumber(Infinity, 'f')).toThrow(TypeError);
+  });
+
+  it('throws for non-number types', () => {
+    expect(() => assertFiniteNumber('10', 'f')).toThrow(TypeError);
+    expect(() => assertFiniteNumber(undefined, 'f')).toThrow(TypeError);
+    expect(() => assertFiniteNumber(null, 'f')).toThrow(TypeError);
+  });
+});
+
+describe('assertNonEmptyString', () => {
+  it('passes for non-empty strings', () => {
+    expect(() => assertNonEmptyString('hello', 'f')).not.toThrow();
+    expect(() => assertNonEmptyString('USD', 'f')).not.toThrow();
+  });
+
+  it('throws for empty string', () => {
+    expect(() => assertNonEmptyString('', 'f')).toThrow(TypeError);
+  });
+
+  it('throws for whitespace-only string', () => {
+    expect(() => assertNonEmptyString('   ', 'f')).toThrow(TypeError);
+  });
+
+  it('throws for non-string types', () => {
+    expect(() => assertNonEmptyString(123, 'f')).toThrow(TypeError);
+    expect(() => assertNonEmptyString(undefined, 'f')).toThrow(TypeError);
+    expect(() => assertNonEmptyString(null, 'f')).toThrow(TypeError);
   });
 });

@@ -16,6 +16,7 @@ import { ErrorCode } from '../../shared/errors/error-codes.js';
 import { FlushPolicy } from '../../domain/queue/flush-policy.js';
 import { RetryPolicy } from '../../domain/transport/retry-policy.js';
 import { buildEvent, eventToPayload } from '../../domain/event/event-builder.js';
+import { createValidatorRegistry, type EventValidatorRegistry, type EventName, type TrackArgs } from '../../domain/reserved-events/index.js';
 import { NotInitializedError } from '../../shared/errors/index.js';
 import { EVENTS_PATH, USER_PROPERTIES_PATH } from '../../shared/constants.js';
 import { BatchDispatcher } from '../dispatcher/batch-dispatcher.js';
@@ -31,6 +32,7 @@ export abstract class AbstractAppssClient {
   private flushPolicy: FlushPolicy | null = null;
   private initialized = false;
   private readonly enricher = new EventEnricher();
+  private readonly validatorRegistry: EventValidatorRegistry = createValidatorRegistry();
 
   protected abstract createTransport(config: ResolvedConfig): ITransport;
   protected abstract createQueue(config: ResolvedConfig): IEventQueue;
@@ -71,10 +73,14 @@ export abstract class AbstractAppssClient {
     this.logger?.info('SDK destroyed');
   }
 
-  track(distinctId: DistinctId, event: string, properties?: EventProperties): void {
+  track<E extends EventName>(distinctId: DistinctId, event: E, ...args: TrackArgs<E>): void {
     if (!this.guardInitialized()) return;
     const id = resolveDistinctId(distinctId);
     if (!id) return;
+
+    const properties = args[0] as EventProperties | undefined;
+
+    this.validatorRegistry.validate(event, properties);
 
     const enrichedProperties = this.enricher.enrich(properties);
     const appssEvent = buildEvent({ event, distinctId: id, properties: enrichedProperties });

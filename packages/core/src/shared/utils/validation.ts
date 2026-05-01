@@ -16,6 +16,18 @@ export function assertNonNegativeInteger(value: number | undefined, name: string
   }
 }
 
+export function assertFiniteNumber(value: unknown, name: string): void {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new TypeError(`${name} must be a finite number.`);
+  }
+}
+
+export function assertNonEmptyString(value: unknown, name: string): void {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new TypeError(`${name} must be a non-empty string.`);
+  }
+}
+
 export function clampPositiveFinite(value: number | undefined, max: number): number | undefined {
   if (value === undefined || !Number.isFinite(value) || value <= 0) return undefined;
   return Math.min(value, max);

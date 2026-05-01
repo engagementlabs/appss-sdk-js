@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AbstractAppssClient } from './abstract-client.js';
+import { PURCHASE_EVENT } from '../../shared/constants.js';
 import type { ITransport } from '../../ports/transport.js';
 import type { ILogger } from '../../ports/logger.js';
 import type { IEventQueue } from '../../ports/queue.js';
@@ -25,12 +26,24 @@ class TestTransport implements ITransport {
 
 class TestQueue implements IEventQueue {
   private events: AppssEvent[] = [];
-  enqueue(event: AppssEvent): void { this.events.push(event); }
-  drain(n: number): AppssEvent[] { return this.events.splice(0, n); }
-  peek(n: number): AppssEvent[] { return this.events.slice(0, n); }
-  size(): number { return this.events.length; }
-  isEmpty(): boolean { return this.events.length === 0; }
-  clear(): void { this.events = []; }
+  enqueue(event: AppssEvent): void {
+    this.events.push(event);
+  }
+  drain(n: number): AppssEvent[] {
+    return this.events.splice(0, n);
+  }
+  peek(n: number): AppssEvent[] {
+    return this.events.slice(0, n);
+  }
+  size(): number {
+    return this.events.length;
+  }
+  isEmpty(): boolean {
+    return this.events.length === 0;
+  }
+  clear(): void {
+    this.events = [];
+  }
 }
 
 class TestClient extends AbstractAppssClient {
@@ -42,16 +55,28 @@ class TestClient extends AbstractAppssClient {
     this.setSuperProperties({ $lib: 'test' });
   }
 
-  protected createTransport(_config: ResolvedConfig): ITransport { return this.transport_; }
-  protected createQueue(_config: ResolvedConfig): IEventQueue { return new TestQueue(); }
-  protected createLogger(_config: ResolvedConfig): ILogger { return new NoopLogger(); }
-  protected registerLifecycleHandlers(): void { this.lifecycleRegistered = true; }
-  protected unregisterLifecycleHandlers(): void { this.lifecycleRegistered = false; }
+  protected createTransport(_config: ResolvedConfig): ITransport {
+    return this.transport_;
+  }
+  protected createQueue(_config: ResolvedConfig): IEventQueue {
+    return new TestQueue();
+  }
+  protected createLogger(_config: ResolvedConfig): ILogger {
+    return new NoopLogger();
+  }
+  protected registerLifecycleHandlers(): void {
+    this.lifecycleRegistered = true;
+  }
+  protected unregisterLifecycleHandlers(): void {
+    this.lifecycleRegistered = false;
+  }
 }
 
 describe('AbstractAppssClient', () => {
   let client: TestClient;
-  beforeEach(() => { client = new TestClient(); });
+  beforeEach(() => {
+    client = new TestClient();
+  });
 
   describe('init', () => {
     it('configures SDK', () => {
@@ -82,6 +107,7 @@ describe('AbstractAppssClient', () => {
       client.init({ apiKey: 'key', batchSize: 2 });
       client.track('user-1', 'a');
       client.track('user-1', 'b');
+
       await new Promise((r) => setTimeout(r, 10));
       const eventCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/events');
       expect(eventCalls.length).toBeGreaterThan(0);
@@ -103,6 +129,83 @@ describe('AbstractAppssClient', () => {
       expect(body.batch[0]!.properties).toHaveProperty('$lib', 'test');
       expect(body.batch[0]!.properties).toHaveProperty('foo', 'bar');
     });
+    it('accepts numeric distinctId', async () => {
+      client.init({ apiKey: 'key' });
+      client.track(12345, 'event');
+      await client.flush();
+      const eventCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/events');
+      const batch = (eventCalls[0]!.body as { batch: { distinct_id: string }[] }).batch;
+      expect(batch[0]!.distinct_id).toBe('12345');
+    });
+    it('skips NaN distinctId', () => {
+      client.init({ apiKey: 'key' });
+      client.track(NaN, 'event');
+      expect(client.transport_.calls).toHaveLength(0);
+    });
+  });
+
+  describe('track $purchase validation', () => {
+    it('sends $purchase with valid properties', async () => {
+      client.init({ apiKey: 'key' });
+      client.track('user-1', PURCHASE_EVENT, { currency: 'USD', amount: 9.99 });
+      await client.flush();
+      const eventCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/events');
+      expect(eventCalls.length).toBeGreaterThan(0);
+    });
+    it('throws when $purchase has missing currency', () => {
+      client.init({ apiKey: 'key' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(() => client.track('user-1', PURCHASE_EVENT, { amount: 10 } as any)).toThrow(TypeError);
+    });
+    it('throws when $purchase has invalid amount', () => {
+      client.init({ apiKey: 'key' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(() => client.track('user-1', PURCHASE_EVENT, { currency: 'USD', amount: 'ten' } as any)).toThrow(TypeError);
+    });
+    it('throws when $purchase has NaN amount', () => {
+      client.init({ apiKey: 'key' });
+      expect(() => client.track('user-1', PURCHASE_EVENT, { currency: 'USD', amount: NaN })).toThrow(TypeError);
+    });
+    it('allows $purchase with zero amount', () => {
+      client.init({ apiKey: 'key' });
+      expect(() => client.track('user-1', PURCHASE_EVENT, { currency: 'USD', amount: 0 })).not.toThrow();
+    });
+    it('allows $purchase with negative amount (refund)', () => {
+      client.init({ apiKey: 'key' });
+      expect(() => client.track('user-1', PURCHASE_EVENT, { currency: 'USD', amount: -5.00 })).not.toThrow();
+    });
+    it('allows $purchase with extra properties', async () => {
+      client.init({ apiKey: 'key' });
+      client.track('user-1', PURCHASE_EVENT, { currency: 'EUR', amount: 100, product: 'Premium', custom: true });
+      await client.flush();
+      const eventCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/events');
+      expect(eventCalls.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('superProperties', () => {
+    it('setSuperProperties attaches to all events', async () => {
+      client.init({ apiKey: 'key' });
+      client.setSuperProperties({ env: 'test', version: '1.0' });
+      client.track('user-1', 'event_a');
+      await client.flush();
+      const eventCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/events');
+      const props = (eventCalls[0]!.body as { batch: Array<{ properties: Record<string, unknown> }> }).batch[0]!.properties;
+      expect(props).toHaveProperty('env', 'test');
+      expect(props).toHaveProperty('version', '1.0');
+    });
+    it('resetSuperProperties clears custom properties', async () => {
+      client.init({ apiKey: 'key' });
+      client.setSuperProperties({ env: 'test' });
+      client.resetSuperProperties();
+      client.setSuperProperties({ $lib: 'test' });
+      client.track('user-1', 'event_a');
+      await client.flush();
+      const eventCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/events');
+      const props = (eventCalls[0]!.body as { batch: Array<{ properties: Record<string, unknown> }> }).batch[0]!.properties;
+      expect(props).not.toHaveProperty('env');
+      expect(props).toHaveProperty('$lib', 'test');
+    });
   });
 
   describe('setUserProperty', () => {
@@ -119,7 +222,10 @@ describe('AbstractAppssClient', () => {
       await new Promise((r) => setTimeout(r, 10));
       const propCalls = client.transport_.calls.filter((c) => c.path === '/api/v1/user-properties');
       expect(propCalls).toHaveLength(1);
-      const body = propCalls[0]?.body as { distinct_id: string; properties: Record<string, unknown> };
+      const body = propCalls[0]?.body as {
+        distinct_id: string;
+        properties: Record<string, unknown>;
+      };
       expect(body.distinct_id).toBe('user-1');
       expect(body.properties['a']).toBe(1);
     });

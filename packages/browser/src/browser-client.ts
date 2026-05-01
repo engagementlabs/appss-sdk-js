@@ -7,6 +7,8 @@ import {
   type IEventQueue,
   type ILogger,
   type DistinctId,
+  type EventName,
+  type TrackArgs,
 } from '@appss/sdk-core';
 
 import { SDK_PLATFORM } from './constants.js';
@@ -36,9 +38,9 @@ export class BrowserAppssClient extends AbstractAppssClient {
     this.identity.identify(distinctId);
   }
 
-  override track(distinctId: DistinctId, event: string, properties?: Record<string, unknown>): void {
+  override track<E extends EventName>(distinctId: DistinctId, event: E, ...args: TrackArgs<E>): void {
     if (this.consent.isOptedOut()) return;
-    super.track(distinctId, event, properties);
+    super.track(distinctId, event, ...args);
   }
 
   trackEvent(event: string, properties?: Record<string, unknown>): void {
