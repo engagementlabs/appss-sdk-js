@@ -6,6 +6,7 @@ export interface PurchaseProperties {
   transaction_status?: string;
   transaction_id?: string;
   product?: string;
+  offer_token?: string;
   [key: string]: unknown;
 }
 

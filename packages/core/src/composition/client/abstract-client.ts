@@ -187,6 +187,17 @@ export abstract class AbstractAppssClient {
     }
   }
 
+  protected async dispatchImmediate(path: string, body: unknown): Promise<void> {
+    if (!this.config || !this.dispatcher) return;
+
+    const headers = buildHeaders(this.config);
+    const result = await this.dispatcher.dispatch(path, body, headers);
+
+    if (result.error) {
+      this.handleError(result.error);
+    }
+  }
+
   private async sendUserProperties(
     distinctId: string,
     properties: Record<string, unknown>,

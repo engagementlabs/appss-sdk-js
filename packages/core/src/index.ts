@@ -32,7 +32,13 @@ export {
 export type { ErrorSeverity } from './shared/errors/index.js';
 
 export { storageKey } from './shared/storage-key.js';
-export { PURCHASE_EVENT } from './shared/constants.js';
+export {
+  PURCHASE_EVENT,
+  PUSH_EVENTS_PATH,
+  PUSH_SENT_EVENT,
+  PUSH_FAILED_EVENT,
+  PUSH_QUEUED_EVENT,
+} from './shared/constants.js';
 export type { PurchaseProperties } from './domain/reserved-events/purchase.js';
 export type { ReservedEventMap, EventName, TrackArgs } from './domain/reserved-events/event-map.js';
 
