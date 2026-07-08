@@ -4,6 +4,8 @@ export { TelegramSender } from './transport/telegram-sender.js';
 export type { SendOutcome } from './transport/telegram-sender.js';
 export { fromTelegrafContext } from './helpers/telegraf.js';
 export { fromGrammyContext } from './helpers/grammy.js';
+export { decodeAndVerifyOffer } from './helpers/offer.js';
+export type { OfferResult } from './helpers/offer.js';
 export type { TelegramUserProperties, ExtractedContext } from './helpers/extract.js';
 export { MemoryQueue } from './queue/memory-queue.js';
 
