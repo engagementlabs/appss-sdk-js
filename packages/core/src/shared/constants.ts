@@ -12,7 +12,12 @@ export const JITTER_FACTOR = 0.2;
 export const PROTOCOL_VERSION = '1' as const;
 export const EVENTS_PATH = '/api/v1/events' as const;
 export const USER_PROPERTIES_PATH = '/api/v1/user-properties' as const;
+export const PUSH_EVENTS_PATH = '/api/v1/push-events' as const;
 export const REQUEST_TIMEOUT_MS = 30_000;
 export const SHUTDOWN_TIMEOUT_MS = 5_000;
 export const STORAGE_KEY_PREFIX = '__appss_' as const;
 export const PURCHASE_EVENT = '$purchase' as const;
+
+export const PUSH_SENT_EVENT = 'Push Sent' as const;
+export const PUSH_FAILED_EVENT = 'Push Failed' as const;
+export const PUSH_QUEUED_EVENT = 'Push Queued' as const;

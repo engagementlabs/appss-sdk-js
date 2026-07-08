@@ -1,10 +1,13 @@
-import type { AppssConfig, DistinctId, EventName, TrackArgs } from '@appss/sdk-core';
+import type { DistinctId, EventName, TrackArgs } from '@appss/sdk-core';
 import { NodeInternalClient } from './internal-client.js';
+import type { NodeAppssConfig } from './config.js';
+import type { WebhookPushPayload } from '../push/types.js';
+import type { SendOutcome } from '../transport/telegram-sender.js';
 
 export class AppssNodeClient {
   private readonly client: NodeInternalClient;
 
-  constructor(config: AppssConfig) {
+  constructor(config: NodeAppssConfig) {
     this.client = new NodeInternalClient();
     this.client.init(config);
   }
@@ -19,6 +22,10 @@ export class AppssNodeClient {
 
   track<E extends EventName>(distinctId: DistinctId, event: E, ...args: TrackArgs<E>): void {
     this.client.track(distinctId, event, ...args);
+  }
+
+  sendPush(payload: WebhookPushPayload): Promise<SendOutcome> {
+    return this.client.sendPush(payload);
   }
 
   setUserProperty(distinctId: DistinctId, key: string, value: unknown): void {
@@ -38,6 +45,6 @@ export class AppssNodeClient {
   }
 }
 
-export function createAppss(config: AppssConfig): AppssNodeClient {
+export function createAppss(config: NodeAppssConfig): AppssNodeClient {
   return new AppssNodeClient(config);
 }
