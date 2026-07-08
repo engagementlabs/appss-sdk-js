@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createAppss } from './node-client.js';
 import { NodeInternalClient } from './internal-client.js';
-import type { SendOutcome } from '../transport/telegram-sender.js';
+import { PushSender } from '../push/push-sender.js';
+import type { TelegramSender, SendOutcome } from '../transport/telegram-sender.js';
 
 function payload(overrides: Record<string, unknown> = {}) {
   return {
@@ -41,6 +42,12 @@ function pushEventBodies(): PushEventRow[] {
   return out;
 }
 
+function firstPushEvent(): PushEventRow {
+  const [row] = pushEventBodies();
+  if (!row) throw new Error('expected at least one push event');
+  return row;
+}
+
 describe('AppssNodeClient.sendPush', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -78,13 +85,14 @@ describe('AppssNodeClient.sendPush', () => {
 
     const events = pushEventBodies();
     expect(events).toHaveLength(1);
-    expect(events[0].event).toBe('Push Sent');
-    expect(events[0].$insert_id).toBe('pid-1');
-    expect(events[0].distinct_id).toBe('12345');
-    expect(events[0].properties.transport).toBe('telegram');
-    expect(events[0].properties.source).toBe('sdk');
-    expect(events[0].properties.tg_message_id).toBe('99');
-    expect(events[0].properties.reason).toBeUndefined();
+    const event = firstPushEvent();
+    expect(event.event).toBe('Push Sent');
+    expect(event.$insert_id).toBe('pid-1');
+    expect(event.distinct_id).toBe('12345');
+    expect(event.properties.transport).toBe('telegram');
+    expect(event.properties.source).toBe('sdk');
+    expect(event.properties.tg_message_id).toBe('99');
+    expect(event.properties.reason).toBeUndefined();
   });
 
   it('without BOT_TOKEN emits Push Failed and never calls Bot API', async () => {
@@ -105,9 +113,9 @@ describe('AppssNodeClient.sendPush', () => {
     expect(outcome.reason).toBe('no_token');
     expect(vi.mocked(fetch).mock.calls.some((c) => isTelegram(String(c[0])))).toBe(false);
 
-    const events = pushEventBodies();
-    expect(events[0].event).toBe('Push Failed');
-    expect(events[0].properties.reason).toBe('no_token');
+    const event = firstPushEvent();
+    expect(event.event).toBe('Push Failed');
+    expect(event.properties.reason).toBe('no_token');
   });
 
   it('terminal Bot API failure emits Push Failed without retry', async () => {
@@ -137,9 +145,9 @@ describe('AppssNodeClient.sendPush', () => {
     const tgCalls = vi.mocked(fetch).mock.calls.filter((c) => isTelegram(String(c[0])));
     expect(tgCalls).toHaveLength(1);
 
-    const events = pushEventBodies();
-    expect(events[0].event).toBe('Push Failed');
-    expect(events[0].properties.reason).toBe('blocked');
+    const event = firstPushEvent();
+    expect(event.event).toBe('Push Failed');
+    expect(event.properties.reason).toBe('blocked');
   });
 });
 
@@ -147,9 +155,9 @@ class FakeSender {
   calls = 0;
   constructor(private readonly outcomes: SendOutcome[]) {}
   async sendMessage(): Promise<SendOutcome> {
-    const outcome = this.outcomes[Math.min(this.calls, this.outcomes.length - 1)];
+    const idx = Math.min(this.calls, this.outcomes.length - 1);
     this.calls += 1;
-    return outcome;
+    return this.outcomes[idx] ?? { ok: false, reason: 'network' };
   }
 }
 
@@ -175,9 +183,7 @@ describe('NodeInternalClient.sendPush retries', () => {
     const client = new NodeInternalClient();
     client.init({ apiKey: 'key' });
     const sender = new FakeSender([{ ok: false, reason: 'network' }]);
-    client.telegramSender = sender as never;
-    (client as unknown as { sleepImpl: (ms: number) => Promise<void> }).sleepImpl = () =>
-      Promise.resolve();
+    client.pushSender = new PushSender(sender as unknown as TelegramSender, () => Promise.resolve());
 
     const outcome = await client.sendPush(payload());
 
@@ -195,9 +201,7 @@ describe('NodeInternalClient.sendPush retries', () => {
       { ok: false, reason: 'throttled', retryAfter: 1 },
       { ok: true, tgMessageId: 7 },
     ]);
-    client.telegramSender = sender as never;
-    (client as unknown as { sleepImpl: (ms: number) => Promise<void> }).sleepImpl = () =>
-      Promise.resolve();
+    client.pushSender = new PushSender(sender as unknown as TelegramSender, () => Promise.resolve());
 
     const outcome = await client.sendPush(payload());
 

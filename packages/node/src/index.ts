@@ -1,5 +1,8 @@
 export { AppssNodeClient, createAppss } from './client/node-client.js';
-export type { WebhookPushPayload } from './client/internal-client.js';
+export type { NodeAppssConfig } from './client/config.js';
+export type { WebhookPushPayload } from './push/types.js';
+export { PushSender } from './push/push-sender.js';
+export type { PushSendParams } from './push/push-sender.js';
 export { TelegramSender } from './transport/telegram-sender.js';
 export type { SendOutcome } from './transport/telegram-sender.js';
 export { fromTelegrafContext } from './helpers/telegraf.js';
