@@ -163,13 +163,13 @@ class EventEnricher {
 }
 ```
 
-Three layers are merged in a fixed order:
+Three layers are merged from the most general to the most specific — later ones win:
 
 ```
-event context → properties passed to track() → super properties
+super properties → event context → properties passed to track()
 ```
 
-Super properties are a static snapshot: set once, sent with every event, they override everything. Event context is the opposite — the provider is called on every `track()`, so it can report values that change while the SDK is alive (page address, viewport), and it loses to the properties the caller passed. A provider that throws is ignored, and `reset()` does not clear it.
+Super properties are a static snapshot: set once, sent with every event. Event context is collected by the provider on every `track()`, so it can report values that change while the SDK is alive (page address, viewport). Properties passed by the caller always win over both. A provider that throws is ignored, and `reset()` does not clear it.
 
 Used internally by `AbstractAppssClient` — platform packages call `setSuperProperties()` to set `$lib` and other metadata, and `setEventContextProvider()` to attach environment properties.
 

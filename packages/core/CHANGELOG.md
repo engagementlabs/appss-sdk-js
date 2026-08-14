@@ -8,4 +8,8 @@
 
 ### Added
 
-- **Event context provider.** `setEventContextProvider(fn)` on the client (and `EventEnricher.setContextProvider`) registers a source of per-event context: it is collected on every `track()`, unlike the static super properties. Merge order is `context → properties passed to track() → super properties`, so the caller can always override the collected values. A provider that throws is ignored. Platform packages use it to attach environment properties without reimplementing enrichment.
+- **Event context provider.** `setEventContextProvider(fn)` on the client (and `EventEnricher.setContextProvider`) registers a source of per-event context: it is collected on every `track()`, unlike the static super properties. A provider that throws is ignored. Platform packages use it to attach environment properties without reimplementing enrichment.
+
+### Changed
+
+- **Enrichment order.** `EventEnricher.enrich()` merges from the most general to the most specific: `super properties → event context → properties passed to track()`. Super properties no longer override the properties of the call — previously a super property with the same key silently won.

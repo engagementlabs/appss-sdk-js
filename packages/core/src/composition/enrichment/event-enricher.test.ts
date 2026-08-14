@@ -21,11 +21,11 @@ describe('EventEnricher', () => {
     expect(enricher.enrich()).toEqual({});
   });
 
-  it('super properties override event properties', () => {
+  it('event properties override super properties', () => {
     const enricher = new EventEnricher();
     enricher.set('$lib', 'browser');
 
-    expect(enricher.enrich({ $lib: 'user-set' })['$lib']).toBe('browser');
+    expect(enricher.enrich({ $lib: 'user-set' })['$lib']).toBe('user-set');
   });
 
   it('preserves all original event properties', () => {
@@ -94,12 +94,12 @@ describe('EventEnricher', () => {
     expect(enricher.enrich({ $current_url: '/custom' })['$current_url']).toBe('/custom');
   });
 
-  it('super properties override the context', () => {
+  it('the context overrides super properties', () => {
     const enricher = new EventEnricher();
     enricher.setContextProvider(() => ({ $lib: 'context' }));
     enricher.set('$lib', 'browser');
 
-    expect(enricher.enrich()['$lib']).toBe('browser');
+    expect(enricher.enrich()['$lib']).toBe('context');
   });
 
   it('ignores a context provider that throws', () => {

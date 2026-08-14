@@ -8,7 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@appss/sdk-browser": "0.1.0"
+    "@appss/sdk-browser": "*"
   },
   "devDependencies": {
     "vite": "^6.0.0",

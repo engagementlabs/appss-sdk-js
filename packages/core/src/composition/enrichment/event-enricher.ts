@@ -29,7 +29,7 @@ export class EventEnricher {
   }
 
   enrich(eventProperties?: EventProperties): EventProperties {
-    return { ...this.collectContext(), ...eventProperties, ...this.properties };
+    return { ...this.properties, ...this.collectContext(), ...eventProperties };
   }
 
   private collectContext(): EventProperties {

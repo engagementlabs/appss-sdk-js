@@ -10,6 +10,7 @@
 
 - **Web session properties.** Outside Telegram every event now carries the page address and path, the referrer and its domain, campaign tags, screen and viewport size, device type, browser language and timezone. Collected through the `setEventContextProvider` hook of `@appss/sdk-core`, so properties passed to `track()` still win over the collected ones.
 - **Campaign tags for the whole session.** `utm_source`, `utm_medium`, `utm_campaign`, `utm_term` and `utm_content` are remembered in `sessionStorage`, so events after the first one keep the attribution.
+- **`setSuperProperties(props)` / `resetSuperProperties()`.** Properties attached to every event that follows — app version, tenant, plan. They live in memory, so they have to be set after every `init()`, and `reset()` clears them. Properties passed to `track()` win over them.
 - **`reset()`.** Forgets the current user: outside Telegram a fresh anonymous ID is issued, the stored account ID is dropped and super properties are cleared. Call it on logout so events of the next user in the same browser are not glued to the previous one.
 
 ### Changed

@@ -100,6 +100,19 @@ setUserProperties({
 });
 ```
 
+### `setSuperProperties(props)` / `resetSuperProperties()`
+
+Sets properties attached to every event the SDK sends afterwards — app version, tenant, plan, anything constant for the session.
+
+```ts
+setSuperProperties({ app_version: '1.2.3', plan: 'free' });
+
+track('page_viewed');            // { app_version: '1.2.3', plan: 'free', ... }
+track('upgraded', { plan: 'pro' }); // properties of the call win: plan is 'pro'
+```
+
+They live in memory only, so set them after every `init()` — a page reload starts with an empty set. `reset()` clears them together with the identity.
+
 ### `flush()`
 
 Forces immediate delivery of queued events. Normally not needed — the SDK flushes automatically by timer and on page hide.
