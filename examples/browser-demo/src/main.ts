@@ -1,9 +1,12 @@
 import {
   init,
   identify,
+  reset,
   track,
   setUserProperty,
   setUserProperties,
+  setSuperProperties,
+  resetSuperProperties,
   flush,
   optOut,
   optIn,
@@ -45,10 +48,25 @@ bind('btn-reidentify', () => {
   log('Re-identified as user-42', 'info');
 });
 
+bind('btn-reset', () => {
+  reset();
+  log('Reset — new anonymous ID, super properties cleared', 'warn');
+});
+
 bind('btn-props', () => {
   setUserProperty('plan', 'pro');
   setUserProperties({ company: 'Acme Inc', role: 'developer', signup_date: '2024-01-15' });
   log('Set user properties: plan, company, role, signup_date', 'info');
+});
+
+bind('btn-super-props', () => {
+  setSuperProperties({ app_version: '1.2.3', tenant: 'acme' });
+  log('Set super properties: app_version, tenant — they ride on every event', 'info');
+});
+
+bind('btn-super-props-reset', () => {
+  resetSuperProperties();
+  log('Super properties cleared', 'warn');
 });
 
 bind('btn-flush', async () => {

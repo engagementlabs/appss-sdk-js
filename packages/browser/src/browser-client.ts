@@ -53,6 +53,10 @@ export class BrowserAppssClient extends AbstractAppssClient {
   reset(): void {
     this.identity.reset(this.platform.getUserId(), this.getLogger());
     this.resetSuperProperties();
+  }
+
+  override resetSuperProperties(): void {
+    super.resetSuperProperties();
     this.setSuperProperties({ $lib: SDK_PLATFORM });
   }
 
