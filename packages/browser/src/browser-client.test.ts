@@ -83,6 +83,24 @@ describe('BrowserAppssClient outside Telegram', () => {
     });
   });
 
+  it('adds super properties to every event and lets the caller override them', () => {
+    client.setSuperProperties({ app_version: '1.2.3', plan: 'free' });
+    client.trackEvent('page_viewed');
+    client.trackEvent('upgraded', { plan: 'pro' });
+
+    expect(queue.events[0]?.properties).toMatchObject({ app_version: '1.2.3', plan: 'free' });
+    expect(queue.events[1]?.properties).toMatchObject({ app_version: '1.2.3', plan: 'pro' });
+  });
+
+  it('clears the super properties on reset', () => {
+    client.setSuperProperties({ app_version: '1.2.3' });
+    client.reset();
+    client.trackEvent('page_viewed');
+
+    expect(queue.events[0]?.properties?.['app_version']).toBeUndefined();
+    expect(queue.events[0]?.properties?.['$lib']).toBe('browser');
+  });
+
   it('lets caller properties win over collected ones', () => {
     client.trackEvent('page_viewed', { $pathname: '/custom', plan: 'pro' });
 

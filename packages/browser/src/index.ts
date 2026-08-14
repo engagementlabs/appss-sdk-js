@@ -5,6 +5,8 @@ export {
   track,
   setUserProperty,
   setUserProperties,
+  setSuperProperties,
+  resetSuperProperties,
   flush,
   optOut,
   optIn,

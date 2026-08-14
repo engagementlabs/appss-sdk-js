@@ -36,6 +36,14 @@ export function setUserProperties(properties: Record<string, unknown>): void {
   getClient().setProperties(properties);
 }
 
+export function setSuperProperties(properties: Record<string, unknown>): void {
+  getClient().setSuperProperties(properties);
+}
+
+export function resetSuperProperties(): void {
+  getClient().resetSuperProperties();
+}
+
 export async function flush(): Promise<void> {
   return getClient().flush();
 }
