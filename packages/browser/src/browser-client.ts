@@ -11,31 +11,49 @@ import {
   type TrackArgs,
 } from '@appss/sdk-core';
 
-import { SDK_PLATFORM } from './constants.js';
+import { ANON_DISTINCT_ID_PROPERTY, IDENTIFY_EVENT, SDK_PLATFORM } from './constants.js';
 import { FetchTransport } from './transport/fetch-transport.js';
 import { PersistentQueue } from './queue/persistent-queue.js';
 import { ConsoleLogger } from './logger/console-logger.js';
 import { NoopLogger } from './logger/noop-logger.js';
 import { PageLifecycleManager } from './lifecycle/page-lifecycle.js';
 import { BrowserIdentityManager } from './identity/identity-manager.js';
+import { detectPlatform } from './platform/detect-platform.js';
+import { WebPlatform } from './platform/web-platform.js';
+import type { Platform } from './platform/platform.js';
 import { BrowserConsentManager } from './consent/consent-manager.js';
 
 export class BrowserAppssClient extends AbstractAppssClient {
   private lifecycle: PageLifecycleManager | null = null;
   private readonly identity = new BrowserIdentityManager();
   private readonly consent = new BrowserConsentManager();
+  private platform: Platform = new WebPlatform();
 
   override init(config: AppssConfig): void {
     super.init(config);
     this.setSuperProperties({ $lib: SDK_PLATFORM });
-    const tmaProps = this.identity.autoIdentify();
-    if (tmaProps) {
-      this.setProperties(tmaProps);
+    this.setEventContextProvider(() => this.platform.getEventContext(this.getLogger()));
+
+    this.platform = detectPlatform();
+    this.identity.start(this.platform.getUserId(), this.getLogger());
+
+    const platformProperties = this.platform.getProperties();
+    if (Object.keys(platformProperties).length > 0) {
+      this.setProperties(platformProperties);
     }
   }
 
   identify(distinctId: string): void {
-    this.identity.identify(distinctId);
+    const previousId = this.identity.identify(distinctId, this.getLogger());
+    if (!previousId) return;
+
+    this.track(distinctId, IDENTIFY_EVENT, { [ANON_DISTINCT_ID_PROPERTY]: previousId });
+  }
+
+  reset(): void {
+    this.identity.reset(this.platform.getUserId(), this.getLogger());
+    this.resetSuperProperties();
+    this.setSuperProperties({ $lib: SDK_PLATFORM });
   }
 
   override track<E extends EventName>(distinctId: DistinctId, event: E, ...args: TrackArgs<E>): void {

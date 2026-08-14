@@ -69,4 +69,62 @@ describe('EventEnricher', () => {
 
     expect(enricher.enrich()).toEqual({ $lib: 'node' });
   });
+
+  it('enriches with the context provider', () => {
+    const enricher = new EventEnricher();
+    enricher.setContextProvider(() => ({ $current_url: '/pricing' }));
+
+    expect(enricher.enrich({ plan: 'pro' })).toEqual({ $current_url: '/pricing', plan: 'pro' });
+  });
+
+  it('collects the context on every event', () => {
+    const enricher = new EventEnricher();
+    let page = '/pricing';
+    enricher.setContextProvider(() => ({ $current_url: page }));
+
+    expect(enricher.enrich()['$current_url']).toBe('/pricing');
+    page = '/checkout';
+    expect(enricher.enrich()['$current_url']).toBe('/checkout');
+  });
+
+  it('event properties override the context', () => {
+    const enricher = new EventEnricher();
+    enricher.setContextProvider(() => ({ $current_url: '/pricing' }));
+
+    expect(enricher.enrich({ $current_url: '/custom' })['$current_url']).toBe('/custom');
+  });
+
+  it('super properties override the context', () => {
+    const enricher = new EventEnricher();
+    enricher.setContextProvider(() => ({ $lib: 'context' }));
+    enricher.set('$lib', 'browser');
+
+    expect(enricher.enrich()['$lib']).toBe('browser');
+  });
+
+  it('ignores a context provider that throws', () => {
+    const enricher = new EventEnricher();
+    enricher.setContextProvider(() => {
+      throw new Error('no window');
+    });
+
+    expect(enricher.enrich({ plan: 'pro' })).toEqual({ plan: 'pro' });
+  });
+
+  it('reset() keeps the context provider', () => {
+    const enricher = new EventEnricher();
+    enricher.setContextProvider(() => ({ $current_url: '/pricing' }));
+    enricher.setAll({ $lib: 'browser' });
+    enricher.reset();
+
+    expect(enricher.enrich()).toEqual({ $current_url: '/pricing' });
+  });
+
+  it('setContextProvider(null) stops the collection', () => {
+    const enricher = new EventEnricher();
+    enricher.setContextProvider(() => ({ $current_url: '/pricing' }));
+    enricher.setContextProvider(null);
+
+    expect(enricher.enrich()).toEqual({});
+  });
 });

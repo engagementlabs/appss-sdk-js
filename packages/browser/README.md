@@ -18,7 +18,7 @@ init({ apiKey: 'your-api-key' });
 track('page_view', { page: '/home' });
 ```
 
-The SDK automatically identifies the user (Telegram user ID in TMA, or a persistent anonymous ID otherwise), queues events, and sends them in batches.
+The SDK automatically identifies the user (Telegram user ID in TMA, or a persistent anonymous ID otherwise), collects the properties of the environment, queues events, and sends them in batches. Once `identify()` is called, the account ID is remembered across page loads until `reset()`.
 
 ## Getting your API key
 
@@ -63,13 +63,28 @@ track('level_complete');
 
 ### `identify(distinctId)`
 
-Overrides the auto-detected user ID.
+Overrides the auto-detected user ID. Pass the same account ID your product sends to other analytics systems — otherwise the data cannot be cross-checked.
 
 ```ts
 identify('user-42');
 ```
 
-In Telegram Mini Apps, `identify` is called automatically with the Telegram user ID. Outside TMA, a random persistent ID is generated and stored in localStorage.
+Calling it is optional: until then the SDK uses the ID of the platform it runs on (the Telegram user ID inside TMA) or a random persistent ID stored in localStorage.
+
+Whenever `identify()` changes the current ID, the SDK sends one `$identify` event: its `distinct_id` is the new ID and the `$anon_distinct_id` property holds the ID used before — the server links the two into one person. The following events carry the new ID only. Calling `identify()` with the ID already in use sends nothing.
+
+The account ID is remembered in localStorage, so the user stays identified across page loads and the link is not sent again. `reset()` drops it and goes back to the anonymous ID (or the Telegram ID inside TMA), so the next login links the freshly issued anonymous ID — one account can collect several anonymous IDs this way. Inside TMA the starting ID is the Telegram user ID, and `identify()` links it to the account in the same way.
+
+### `reset()`
+
+Forgets the current user. Outside TMA a fresh anonymous ID is issued, the stored account ID is dropped and the collected super properties are cleared, so events of the next user in the same browser are not glued to the previous one. Call it on logout.
+
+```ts
+reset();
+track('page_viewed'); // sent under a new anonymous ID
+```
+
+Inside TMA the distinct ID goes back to the Telegram user ID.
 
 ### `setUserProperty(key, value)` / `setUserProperties(props)`
 
@@ -112,9 +127,20 @@ Flushes remaining data and tears down the SDK. After calling `destroy()`, all ot
 await destroy();
 ```
 
+## Platforms
+
+The SDK detects the environment it runs in and asks it for three things: the ID of the current user, the user properties to send once at `init()`, and the properties to attach to every event.
+
+| | Telegram Mini App | Web page |
+|---|---|---|
+| Detected by | `window.Telegram.WebApp.initDataUnsafe.user` | fallback, always available |
+| User ID | Telegram user ID | random persistent anonymous ID |
+| User properties | the TMA table below | none |
+| Event properties | none | the web table below |
+
 ## Auto-collected properties (TMA)
 
-When running inside a Telegram Mini App, the SDK automatically collects the following user properties from `window.Telegram.WebApp`:
+When running inside a Telegram Mini App, the SDK sends the following user properties from `window.Telegram.WebApp` once at `init()`:
 
 | Property | Source |
 |----------|--------|
@@ -128,7 +154,38 @@ When running inside a Telegram Mini App, the SDK automatically collects the foll
 | `color_scheme` | `Telegram.WebApp.colorScheme` |
 | `$start_param` | `initDataUnsafe.start_param` |
 
-If `window.Telegram.WebApp` is not available (SDK loaded outside TMA), these properties are not collected. The developer is responsible for setting properties manually in that case.
+## Auto-collected properties (web)
+
+When `window.Telegram.WebApp` is not available, the SDK collects the following properties and attaches them to **every** event:
+
+| Property | Source |
+|----------|--------|
+| `$current_url` | `location.href` |
+| `$pathname` | `location.pathname` |
+| `$referrer` | `document.referrer`, `$direct` when empty |
+| `$referring_domain` | hostname of `document.referrer`, `$direct` when empty |
+| `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` | URL query, remembered in sessionStorage for the whole session |
+| `$screen_width`, `$screen_height` | `screen.width` / `screen.height` |
+| `$viewport_width`, `$viewport_height` | `innerWidth` / `innerHeight` |
+| `$device_type` | `Mobile` / `Tablet` / `Desktop`, from `navigator.userAgent` |
+| `$browser_language` | `navigator.language` |
+| `$timezone` | `Intl.DateTimeFormat().resolvedOptions().timeZone` |
+
+Everything except the campaign tags is collected anew for each event, so page and viewport changes are reflected. Campaign tags are read from the URL and remembered for the session — an event that happens after the user navigates away from the landing URL still carries the attribution. Properties passed to `track()` win over the collected ones.
+
+Inside TMA these properties are **not** collected: the set of Telegram properties above is the only thing the SDK adds.
+
+## Storage
+
+| Key | Storage | Contents | Cleared by |
+|-----|---------|----------|------------|
+| `__appss_anonymous_id` | localStorage | anonymous ID | `reset()` |
+| `__appss_distinct_id` | localStorage | account ID passed to `identify()` | `reset()` |
+| `__appss_campaign` | sessionStorage | campaign tags of the session | closing the tab |
+| `__appss_consent_opted_out` | localStorage | opt-out flag | `optIn()` |
+| `__appss_queue` | localStorage | events waiting to be sent | successful delivery |
+
+If storage is unavailable (private mode, blocked third-party cookies in an iframe), the SDK keeps working with in-memory values and reports the failure through the logger in `debug` mode. In that case the anonymous ID is regenerated on every page load.
 
 ## Offline queue & persistence
 
@@ -170,9 +227,9 @@ The SDK targets **< 10 KB min+gzip** with **zero runtime dependencies**. The onl
 
 ## What this SDK does NOT do
 
-- **No session tracking.** The SDK does not track sessions, session duration, or session IDs.
+- **No session tracking.** The SDK does not track sessions, session duration, or session IDs. Campaign tags are the only thing scoped to the browser session.
 - **No feature flags.** This is a pure analytics SDK.
-- **No `reset()`.** There is no method to clear user identity mid-session. Call `destroy()` and `init()` again if needed.
+- **No client-side identity resolution.** The SDK reports the two IDs in a `$identify` event and leaves the merging to the server; it never rewrites already sent events.
 - **No fingerprinting.** The SDK does not collect device fingerprints, IP-based geolocation, or any PII beyond what is explicitly passed by the developer or available from the Telegram WebApp API.
 - **No automatic page view tracking.** The developer decides which events to track.
 - **No A/B testing or experimentation.**

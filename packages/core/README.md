@@ -16,6 +16,7 @@ Base class that browser and node packages extend. Handles the full event lifecyc
 - `setUserProperties(distinctId, properties)` — send multiple user properties
 - `setSuperProperties(properties)` — set properties attached to every event automatically
 - `resetSuperProperties()` — clear all super properties
+- `setEventContextProvider(provider)` — register a source of per-event context (see `EventEnricher`)
 - `flush()` — force send all queued events (deduplicated)
 - `destroy()` — flush + stop timers + unregister lifecycle handlers
 
@@ -28,6 +29,8 @@ protected abstract createLogger(config: ResolvedConfig): ILogger;
 protected abstract registerLifecycleHandlers(): void;
 protected abstract unregisterLifecycleHandlers(): void;
 ```
+
+Subclasses can also read the resolved logger with `protected getLogger(): ILogger | null` — useful for platform code that reports failures without throwing.
 
 ### Ports (interfaces)
 
@@ -147,19 +150,36 @@ Error codes:
 
 ### EventEnricher
 
-Manages super properties that are automatically merged into every tracked event:
+Manages the properties that are automatically merged into every tracked event:
 
 ```ts
 class EventEnricher {
   set(key: string, value: unknown): void;
   setAll(properties: Record<string, unknown>): void;
+  setContextProvider(provider: EventContextProvider | null): void;
   remove(key: string): void;
   reset(): void;
   enrich(eventProperties?: EventProperties): EventProperties;
 }
 ```
 
-Super properties override event properties with the same key. Used internally by `AbstractAppssClient` — platform packages call `setSuperProperties()` to set `$lib` and other metadata.
+Three layers are merged in a fixed order:
+
+```
+event context → properties passed to track() → super properties
+```
+
+Super properties are a static snapshot: set once, sent with every event, they override everything. Event context is the opposite — the provider is called on every `track()`, so it can report values that change while the SDK is alive (page address, viewport), and it loses to the properties the caller passed. A provider that throws is ignored, and `reset()` does not clear it.
+
+Used internally by `AbstractAppssClient` — platform packages call `setSuperProperties()` to set `$lib` and other metadata, and `setEventContextProvider()` to attach environment properties.
+
+### uuid
+
+```ts
+function uuid(): string;
+```
+
+Generates a v4 identifier for `$insert_id` and for platform packages that need one. Uses `crypto.randomUUID()` when available, falls back to `crypto.getRandomValues()` (works on insecure origins, where `randomUUID` is not exposed) and then to `Math.random()`.
 
 ### FlushPolicy
 
@@ -179,6 +199,7 @@ To add support for a new platform (e.g., React Native, Deno):
 3. Implement the five abstract methods
 4. Create a constants file with `SDK_PLATFORM`
 5. Call `this.setSuperProperties({ $lib: SDK_PLATFORM })` in `init()`
+6. If the environment has properties worth sending with every event, register them with `this.setEventContextProvider(...)` instead of merging them by hand in `track()`
 
 ```ts
 import { AbstractAppssClient } from '@appss/sdk-core';
