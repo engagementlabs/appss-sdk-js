@@ -1,6 +1,7 @@
 export {
   init,
   identify,
+  reset,
   track,
   setUserProperty,
   setUserProperties,

@@ -19,11 +19,12 @@ npm install @appss/sdk-browser
 ```
 
 ```ts
-import { init, track, identify } from '@appss/sdk-browser';
+import { init, track, identify, reset } from '@appss/sdk-browser';
 
 init({ apiKey: 'your-api-key' });
-identify('user-123');
-track('page_viewed', { page: '/home' });
+track('page_viewed');          // outside Telegram the event carries page, campaign and device properties
+identify('user-123');          // links the anonymous history to the account
+reset();                       // on logout: forget the user, issue a new anonymous ID
 ```
 
 ### Node.js / Telegram Bot
@@ -42,7 +43,7 @@ appss.track('user-123', 'bot_started');
 ## Architecture
 
 ```
-@appss/sdk-core (abstract client, ports, batching, retry)
+@appss/sdk-core (abstract client, ports, batching, retry, enrichment)
        |
   +-----------+-----------+
   |                       |
@@ -50,7 +51,7 @@ appss.track('user-123', 'bot_started');
 (fetch, sendBeacon,   (Node fetch, memory queue,
  localStorage queue,   SIGTERM handler,
  consent, identity,    Telegram helpers)
- TMA support)
+ platforms: web, TMA)
 ```
 
 Core defines the abstract client and platform-agnostic interfaces (`ITransport`, `IEventQueue`, `ILogger`). Browser and Node implement these interfaces for their platforms.

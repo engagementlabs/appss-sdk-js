@@ -20,6 +20,10 @@ export function identify(distinctId: string): void {
   getClient().identify(distinctId);
 }
 
+export function reset(): void {
+  getClient().reset();
+}
+
 export function track(event: string, properties?: EventProperties): void {
   getClient().trackEvent(event, properties);
 }
