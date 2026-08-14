@@ -1,7 +1,10 @@
 import type { EventProperties } from '../../shared/types/wire-protocol.js';
 
+export type EventContextProvider = () => EventProperties;
+
 export class EventEnricher {
   private readonly properties: Record<string, unknown> = {};
+  private contextProvider: EventContextProvider | null = null;
 
   set(key: string, value: unknown): void {
     this.properties[key] = value;
@@ -9,6 +12,10 @@ export class EventEnricher {
 
   setAll(properties: Record<string, unknown>): void {
     Object.assign(this.properties, properties);
+  }
+
+  setContextProvider(provider: EventContextProvider | null): void {
+    this.contextProvider = provider;
   }
 
   remove(key: string): void {
@@ -22,6 +29,16 @@ export class EventEnricher {
   }
 
   enrich(eventProperties?: EventProperties): EventProperties {
-    return { ...eventProperties, ...this.properties };
+    return { ...this.collectContext(), ...eventProperties, ...this.properties };
+  }
+
+  private collectContext(): EventProperties {
+    if (!this.contextProvider) return {};
+
+    try {
+      return this.contextProvider();
+    } catch {
+      return {};
+    }
   }
 }

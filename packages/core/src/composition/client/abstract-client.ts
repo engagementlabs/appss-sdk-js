@@ -21,7 +21,7 @@ import { NotInitializedError } from '../../shared/errors/index.js';
 import { EVENTS_PATH, USER_PROPERTIES_PATH } from '../../shared/constants.js';
 import { BatchDispatcher } from '../dispatcher/batch-dispatcher.js';
 import { buildHeaders } from '../headers/header-builder.js';
-import { EventEnricher } from '../enrichment/event-enricher.js';
+import { EventEnricher, type EventContextProvider } from '../enrichment/event-enricher.js';
 
 export abstract class AbstractAppssClient {
   private config: ResolvedConfig | null = null;
@@ -118,8 +118,16 @@ export abstract class AbstractAppssClient {
     this.enricher.setAll(properties);
   }
 
+  setEventContextProvider(provider: EventContextProvider | null): void {
+    this.enricher.setContextProvider(provider);
+  }
+
   resetSuperProperties(): void {
     this.enricher.reset();
+  }
+
+  protected getLogger(): ILogger | null {
+    return this.logger;
   }
 
   protected handleError(error: AppssError): void {

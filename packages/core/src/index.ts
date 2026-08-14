@@ -32,6 +32,7 @@ export {
 export type { ErrorSeverity } from './shared/errors/index.js';
 
 export { storageKey } from './shared/storage-key.js';
+export { uuid } from './shared/utils/uuid.js';
 export {
   PURCHASE_EVENT,
   PUSH_EVENTS_PATH,
@@ -43,3 +44,4 @@ export type { PurchaseProperties } from './domain/reserved-events/purchase.js';
 export type { ReservedEventMap, EventName, TrackArgs } from './domain/reserved-events/event-map.js';
 
 export { AbstractAppssClient } from './composition/index.js';
+export type { EventContextProvider } from './composition/index.js';

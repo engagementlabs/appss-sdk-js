@@ -1,5 +1,6 @@
 import type { AppssEvent, EventPayload } from '../../shared/types/wire-protocol.js';
 import type { BuildEventParams } from '../../shared/types/internal.js';
+import { uuid } from '../../shared/utils/uuid.js';
 
 export function buildEvent(params: BuildEventParams): AppssEvent {
   if (!params.event || params.event.trim().length === 0) {
@@ -9,7 +10,7 @@ export function buildEvent(params: BuildEventParams): AppssEvent {
   return {
     event: params.event,
     distinctId: params.distinctId,
-    insertId: crypto.randomUUID(),
+    insertId: uuid(),
     timestamp: new Date(),
     properties: params.properties,
   };
