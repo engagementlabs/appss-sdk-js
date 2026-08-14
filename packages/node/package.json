@@ -1,6 +1,6 @@
 {
   "name": "@appss/sdk-node",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "APPSS analytics SDK for Node.js (Telegram bots, servers)",
   "keywords": [
     "analytics",
@@ -47,6 +47,6 @@
     "clean": "rm -rf dist .turbo coverage"
   },
   "dependencies": {
-    "@appss/sdk-core": "0.4.8"
+    "@appss/sdk-core": "0.4.9"
   }
 }
