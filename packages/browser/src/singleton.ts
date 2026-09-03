@@ -3,11 +3,6 @@ import { BrowserAppssClient } from './browser-client.js';
 
 let client: BrowserAppssClient | null = null;
 
-function getClient(): BrowserAppssClient {
-  if (!client) throw new Error('SDK not initialized. Call init() first.');
-  return client;
-}
-
 export function init(config: AppssConfig): void {
   if (client) {
     void client.destroy();
@@ -16,36 +11,39 @@ export function init(config: AppssConfig): void {
   client.init(config);
 }
 
+// Tracking calls are no-ops before init() (or when analytics is unconfigured) — never throw.
+// A host app must keep working whether or not analytics is available, so a missing/failed init
+// must not turn a track() call into a crash. init() itself still surfaces config errors.
 export function identify(distinctId: string): void {
-  getClient().identify(distinctId);
+  client?.identify(distinctId);
 }
 
 export function track(event: string, properties?: EventProperties): void {
-  getClient().trackEvent(event, properties);
+  client?.trackEvent(event, properties);
 }
 
 export function setUserProperty(key: string, value: unknown): void {
-  getClient().setProperty(key, value);
+  client?.setProperty(key, value);
 }
 
 export function setUserProperties(properties: Record<string, unknown>): void {
-  getClient().setProperties(properties);
+  client?.setProperties(properties);
 }
 
 export async function flush(): Promise<void> {
-  return getClient().flush();
+  await client?.flush();
 }
 
 export function optOut(): void {
-  getClient().optOut();
+  client?.optOut();
 }
 
 export function optIn(): void {
-  getClient().optIn();
+  client?.optIn();
 }
 
 export function isOptedOut(): boolean {
-  return getClient().isOptedOut();
+  return client?.isOptedOut() ?? false;
 }
 
 export async function destroy(): Promise<void> {
