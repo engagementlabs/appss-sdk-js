@@ -53,13 +53,6 @@ jobs:
           git pull --rebase
           git push
 
-      - name: Create release tag
-        if: steps.bump.outputs.packages != '[]'
-        run: |
-          TAG="v$(node -p "require('./packages/core/package.json').version")"
-          git tag "$TAG"
-          git push origin "$TAG"
-
       - name: Publish @appss/sdk-core
         if: contains(steps.bump.outputs.packages, '@appss/sdk-core')
         working-directory: packages/core
@@ -74,3 +67,23 @@ jobs:
         if: contains(steps.bump.outputs.packages, '@appss/sdk-node')
         working-directory: packages/node
         run: npm publish --access public --provenance --registry https://registry.npmjs.org
+
+      # After publishing, never before it. The tag is named after the highest version in the
+      # release, because a release does not have to touch core: a browser-only bump left the
+      # tag at core's unchanged version, `git tag` refused a name that already existed, and
+      # the job died on that line — with the version bump already committed and pushed, and
+      # nothing published. The existence check keeps a repeat from failing the run again.
+      - name: Create release tag
+        if: steps.bump.outputs.packages != '[]'
+        run: |
+          TAG="v$(node -p "
+            const versions = ['core', 'browser', 'node']
+              .map((p) => require('./packages/' + p + '/package.json').version);
+            versions.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+            versions[versions.length - 1]")"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "tag $TAG already exists — nothing to tag"
+            exit 0
+          fi
+          git tag "$TAG"
+          git push origin "$TAG"
