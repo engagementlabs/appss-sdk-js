@@ -1,6 +1,6 @@
 {
   "name": "@appss/sdk-browser",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "description": "APPSS analytics SDK for browser and Telegram Mini Apps",
   "keywords": [
     "analytics",
