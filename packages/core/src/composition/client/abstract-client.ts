@@ -109,6 +109,17 @@ export abstract class AbstractAppssClient {
     void this.sendUserProperties(id, properties);
   }
 
+  async setUserPropertiesImmediately(
+    distinctId: DistinctId,
+    properties: Record<string, unknown>,
+  ): Promise<void> {
+    if (!this.guardInitialized()) return;
+    const id = resolveDistinctId(distinctId);
+    if (!id) return;
+
+    await this.sendUserProperties(id, properties);
+  }
+
   async flush(): Promise<void> {
     if (!this.flushPolicy) return;
     return this.flushPolicy.flush();

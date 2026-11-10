@@ -36,6 +36,13 @@ export class AppssNodeClient {
     this.client.setUserProperties(distinctId, properties);
   }
 
+  setUserPropertiesImmediately(
+    distinctId: DistinctId,
+    properties: Record<string, unknown>,
+  ): Promise<void> {
+    return this.client.setUserPropertiesImmediately(distinctId, properties);
+  }
+
   flush(): Promise<void> {
     return this.client.flush();
   }
