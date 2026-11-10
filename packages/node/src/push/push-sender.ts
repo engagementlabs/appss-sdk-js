@@ -12,6 +12,7 @@ export interface PushSendParams {
   text: string;
   parseMode?: string;
   replyMarkup?: unknown;
+  media?: { type?: string; photo?: string; caption?: string; has_spoiler?: boolean };
 }
 
 const defaultSleep = (ms: number): Promise<void> =>
@@ -30,10 +31,10 @@ export class PushSender {
     private readonly sleep: (ms: number) => Promise<void> = defaultSleep,
   ) {}
 
-  async send({ token, chatId, text, parseMode, replyMarkup }: PushSendParams): Promise<SendOutcome> {
+  async send({ token, chatId, text, parseMode, replyMarkup, media }: PushSendParams): Promise<SendOutcome> {
     let attempt = 0;
     for (;;) {
-      const outcome = await this.sender.sendMessage(token, chatId, text, parseMode, replyMarkup);
+      const outcome = await this.sender.sendMessage(token, chatId, text, parseMode, replyMarkup, media);
       if (
         outcome.ok ||
         !RETRYABLE_SEND_REASONS.has(outcome.reason ?? '') ||

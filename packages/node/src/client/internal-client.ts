@@ -46,6 +46,7 @@ export class NodeInternalClient extends AbstractAppssClient {
     const text = message.text ?? '';
     const parseMode = message.parse_mode;
     const replyMarkup = message.reply_markup;
+    const media = message.media;
 
     const chatIdNum = Number(recipient.telegram_id);
     const chatId = Number.isInteger(chatIdNum) ? chatIdNum : null;
@@ -58,9 +59,9 @@ export class NodeInternalClient extends AbstractAppssClient {
     const token = this.resolveToken();
     if (!token) return fail('no_token');
     if (chatId === null) return fail('no_telegram_id');
-    if (!text) return fail('empty_content');
+    if (!text && !media) return fail('empty_content');
 
-    const outcome = await this.pushSender.send({ token, chatId, text, parseMode, replyMarkup });
+    const outcome = await this.pushSender.send({ token, chatId, text, parseMode, replyMarkup, media });
     if (outcome.ok) {
       await this.emitPushEvent(PUSH_SENT_EVENT, ctx, { tgMessageId: outcome.tgMessageId });
     } else {

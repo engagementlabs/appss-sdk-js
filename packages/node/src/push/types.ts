@@ -5,5 +5,10 @@ export interface WebhookPushPayload {
   step_id?: string;
   app_id?: number;
   recipient?: { telegram_id?: number | string; distinct_id?: string };
-  message?: { text?: string; parse_mode?: string; reply_markup?: unknown };
+  message?: {
+    text?: string;
+    parse_mode?: string;
+    reply_markup?: unknown;
+    media?: { type?: string; photo?: string; caption?: string; has_spoiler?: boolean };
+  };
 }

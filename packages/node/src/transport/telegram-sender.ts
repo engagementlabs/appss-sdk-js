@@ -31,8 +31,19 @@ export class TelegramSender {
     text: string,
     parseMode?: string,
     replyMarkup?: unknown,
+    media?: { type?: string; photo?: string; caption?: string; has_spoiler?: boolean },
   ): Promise<SendOutcome> {
-    const body: Record<string, unknown> = { chat_id: chatId, text };
+    const photo = media?.type === 'photo' ? media : undefined;
+    const method = photo ? 'sendPhoto' : 'sendMessage';
+    const body: Record<string, unknown> = { chat_id: chatId };
+    if (photo) {
+      body.photo = photo.photo;
+      const caption = text || photo.caption;
+      if (caption) body.caption = caption;
+      if (photo.has_spoiler) body.has_spoiler = true;
+    } else {
+      body.text = text;
+    }
     if (parseMode) body.parse_mode = parseMode;
     if (replyMarkup) body.reply_markup = replyMarkup;
 
@@ -41,7 +52,7 @@ export class TelegramSender {
 
     let response: Response;
     try {
-      response = await fetch(`${this.baseUrl}/bot${token}/sendMessage`, {
+      response = await fetch(`${this.baseUrl}/bot${token}/${method}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
